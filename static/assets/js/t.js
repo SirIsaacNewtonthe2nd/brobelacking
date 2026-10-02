@@ -98,7 +98,14 @@ document.addEventListener("DOMContentLoaded", event => {
     const goUrl = sessionStorage.getItem("GoUrl");
     const url = sessionStorage.getItem("URL");
 
-    if (tabCounter === 0 || tabCounter === 1) {
+    const launchUrl = new URLSearchParams(location.search).get("launch");
+
+    if (tabCounter === 1 && launchUrl) {
+      // Opened by the about:blank launcher; the service worker has to be active before /a/ URLs work
+      swReady().then(() => {
+        newIframe.src = `/a/${__uv$config.encodeUrl(launchUrl)}`;
+      });
+    } else if (tabCounter === 0 || tabCounter === 1) {
       if (goUrl !== null) {
         if (goUrl.includes("/e/")) {
           newIframe.src = window.location.origin + goUrl;
@@ -206,6 +213,20 @@ document.addEventListener("DOMContentLoaded", event => {
   });
   createNewTab();
 });
+// Resolves once the proxy service worker is active
+function swReady() {
+  return navigator.serviceWorker
+    .register("../sw.js?v=10-02-2024", { scope: "/a/" })
+    .then(reg => {
+      if (reg.active) return;
+      const sw = reg.installing || reg.waiting;
+      return new Promise(resolve => {
+        sw.addEventListener("statechange", () => {
+          if (sw.state === "activated") resolve();
+        });
+      });
+    });
+}
 // Reload
 function reload() {
   const activeIframe = document.querySelector("#frame-container iframe.active");

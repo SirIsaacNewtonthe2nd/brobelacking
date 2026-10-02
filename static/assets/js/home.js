@@ -7,6 +7,9 @@ try {
 }
 if (!localStorage.getItem("ab")) localStorage.setItem("ab", true);
 
+// Site the about:blank tab opens through the proxy on launch
+const launchUrl = "https://www.google.com/";
+
 // Opens the site inside an about:blank tab and sends this tab elsewhere.
 // Returns false if the browser blocked the popup.
 function openCloak() {
@@ -28,7 +31,7 @@ function openCloak() {
   link.rel = "icon";
   link.href = icon;
 
-  iframe.src = location.href;
+  iframe.src = `/rx?launch=${encodeURIComponent(launchUrl)}`;
   style.position = "fixed";
   style.top = style.bottom = style.left = style.right = 0;
   style.border = style.outline = "none";
