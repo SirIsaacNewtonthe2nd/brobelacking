@@ -1,0 +1,1049 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Predictable</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a two-column bench. The current trial sits on the left, the model's read on you on the right; stacks on phones. */
+:root {
+  --bg: #eceef3;
+  --surface: #f9fafc;
+  --raised: #ffffff;
+  --ink: #171a2c;
+  --ink-2: #4b5170;
+  --muted: #747a94;
+  --line: #d6d9e4;
+  --accent: #3445d6;
+  --accent-soft: #dfe3fb;
+  --on-accent: #ffffff;
+  --stripe: rgba(255, 255, 255, 0.12);
+  --hit: #1b7f52;
+  --hit-soft: #e1f3ea;
+  --miss: #bf3a33;
+  --miss-soft: #fae6e4;
+  --sw-red: #e0464b;
+  --sw-blue: #3a60d8;
+  --sw-green: #2c9d66;
+  --sw-yellow: #e8b400;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Hanken Grotesk", "Helvetica Neue", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f111b;
+    --surface: #171a27;
+    --raised: #1e2232;
+    --ink: #e7e9f3;
+    --ink-2: #a9aec7;
+    --muted: #7c829d;
+    --line: #2c3046;
+    --accent: #8592ff;
+    --accent-soft: #262b4d;
+    --on-accent: #0e1020;
+    --stripe: rgba(14, 16, 32, 0.16);
+    --hit: #4cc38a;
+    --hit-soft: #15291f;
+    --miss: #f0756c;
+    --miss-soft: #321a1a;
+    --sw-red: #ec5d61;
+    --sw-blue: #5b80f0;
+    --sw-green: #3fb87c;
+    --sw-yellow: #f2c42c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f111b;
+  --surface: #171a27;
+  --raised: #1e2232;
+  --ink: #e7e9f3;
+  --ink-2: #a9aec7;
+  --muted: #7c829d;
+  --line: #2c3046;
+  --accent: #8592ff;
+  --accent-soft: #262b4d;
+  --on-accent: #0e1020;
+  --stripe: rgba(14, 16, 32, 0.16);
+  --hit: #4cc38a;
+  --hit-soft: #15291f;
+  --miss: #f0756c;
+  --miss-soft: #321a1a;
+  --sw-red: #ec5d61;
+  --sw-blue: #5b80f0;
+  --sw-green: #3fb87c;
+  --sw-yellow: #f2c42c;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.5 var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+button, select { font: inherit; color: inherit; }
+h1, h2, h3, p { margin: 0; }
+h1, h2, h3 { text-wrap: balance; }
+
+.wrap {
+  max-width: 1140px;
+  margin: 0 auto;
+  padding-block: 28px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid;
+  gap: 22px;
+}
+
+.mono-label {
+  font: 500 11px/1.2 var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+/* Header */
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px 32px;
+}
+.brand { display: grid; gap: 6px; min-width: 0; max-width: 62ch; }
+.brand-name {
+  font: 700 clamp(34px, 5vw, 46px)/1 var(--font-display);
+  letter-spacing: -0.02em;
+}
+.brand-name span { color: var(--accent); }
+.brand-sub { color: var(--ink-2); }
+.controls { display: grid; gap: 6px; }
+.controls select {
+  appearance: none;
+  min-width: 200px;
+  padding: 9px 36px 9px 12px;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  background:
+    linear-gradient(45deg, transparent 50%, var(--ink-2) 50%) right 18px center / 6px 6px no-repeat,
+    linear-gradient(-45deg, transparent 50%, var(--ink-2) 50%) right 13px center / 6px 6px no-repeat,
+    var(--raised);
+  cursor: pointer;
+}
+.controls select:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* Grid */
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+@media (max-width: 880px) {
+  .grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Trial bench */
+.bench {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 24px clamp(16px, 3vw, 30px) 26px;
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+@media (min-width: 881px) {
+  .bench { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); }
+}
+.trial-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font: 500 12px/1.2 var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.trial-meta .push { margin-left: auto; }
+.trial-meta #trialNo { color: var(--ink); }
+.prompt {
+  font: 700 clamp(30px, 4.4vw, 42px)/1.05 var(--font-display);
+  letter-spacing: -0.015em;
+  margin-top: -8px;
+}
+
+/* Sealed guess card */
+.seal { position: relative; height: 108px; perspective: 1100px; }
+.seal-inner {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transition: transform 0.5s cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+.seal[data-state="open"] .seal-inner { transform: rotateY(180deg); }
+.seal-face {
+  position: absolute;
+  inset: 0;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  border-radius: 12px;
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  padding: 0 22px;
+}
+.seal-face strong {
+  font: 700 28px/1.1 var(--font-display);
+  letter-spacing: -0.01em;
+}
+.seal-back {
+  background:
+    repeating-linear-gradient(135deg, transparent 0 9px, var(--stripe) 9px 11px),
+    var(--accent);
+  color: var(--on-accent);
+}
+.seal-back .mono-label, .seal-back .seal-note { color: var(--on-accent); opacity: 0.8; }
+.seal-front {
+  transform: rotateY(180deg);
+  background: var(--raised);
+  border: 1.5px solid var(--line);
+}
+.seal-front.is-hit { border-color: var(--hit); background: var(--hit-soft); }
+.seal-front.is-miss { border-color: var(--miss); background: var(--miss-soft); }
+.seal-note { font: 400 13px/1.3 var(--font-mono); color: var(--ink-2); }
+
+/* Options */
+.options {
+  display: grid;
+  grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr));
+  gap: 18px 10px;
+}
+@media (max-width: 520px) {
+  .options[data-n="4"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.opt {
+  appearance: none;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 96px;
+  padding: 18px 8px 14px;
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  background: var(--raised);
+  font-weight: 600;
+  font-size: 17px;
+  line-height: 1.15;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s, opacity 0.2s, transform 0.08s;
+}
+.opt:hover:not(.is-locked) { border-color: var(--ink-2); }
+.opt:active:not(.is-locked) { transform: translateY(1px); }
+.opt:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.opt kbd {
+  position: absolute;
+  top: 7px;
+  left: 9px;
+  font: 500 11px/1 var(--font-mono);
+  color: var(--muted);
+}
+.opt.is-locked { cursor: default; }
+.opt.is-dim { opacity: 0.4; }
+.opt.is-pick { border-color: var(--ink); border-width: 2px; }
+.opt.is-guess::after {
+  content: "its guess";
+  position: absolute;
+  bottom: -9px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font: 500 10px/1 var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.opt-label { overflow-wrap: anywhere; }
+.glyph-wrap { display: grid; place-items: center; height: 22px; }
+.glyph-wrap svg { width: 20px; height: 20px; color: var(--ink-2); }
+.sw { width: 20px; height: 20px; border-radius: 50%; }
+.glyph { font-size: 22px; line-height: 1; color: var(--ink-2); }
+.glyph.red { color: var(--sw-red); }
+
+.verdict { min-height: 1.5em; color: var(--ink-2); }
+.verdict b { font-weight: 600; }
+.verdict .v-hit { color: var(--hit); }
+.verdict .v-miss { color: var(--miss); }
+
+.strip-wrap { display: grid; gap: 8px; border-top: 1px solid var(--line); padding-top: 16px; }
+.strip { display: flex; flex-wrap: wrap; gap: 4px; min-height: 12px; }
+.strip i { width: 12px; height: 12px; border-radius: 3px; border: 1.5px solid var(--line); }
+.strip i.h { background: var(--hit); border-color: var(--hit); }
+.strip-empty { font-size: 13px; color: var(--muted); }
+.strip-key { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); }
+.strip-key span { display: inline-flex; align-items: center; gap: 6px; }
+.strip-key i { width: 10px; height: 10px; border-radius: 3px; border: 1.5px solid var(--line); }
+.strip-key i.h { background: var(--hit); border-color: var(--hit); }
+
+/* Read panel */
+.read { display: grid; gap: 26px; min-width: 0; padding-top: 4px; }
+.read-title { font: 700 24px/1.1 var(--font-display); letter-spacing: -0.01em; }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: -8px; }
+.stat { display: grid; gap: 2px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); min-width: 0; }
+.stat-label { font-size: 13px; color: var(--ink-2); }
+.stat-value { font: 600 30px/1.1 var(--font-body); letter-spacing: -0.01em; }
+.stat-sub { font-size: 12px; color: var(--muted); }
+@media (max-width: 400px) {
+  .stat { padding: 10px; }
+  .stat-value { font-size: 24px; }
+}
+
+.block { display: grid; gap: 10px; min-width: 0; }
+.block-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; }
+.block-head h3 { font: 600 16px/1.2 var(--font-body); }
+.block-note { font-size: 13px; color: var(--ink-2); max-width: 60ch; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 14px; height: 2px; border-radius: 1px; background: var(--accent); }
+.legend i.c { background: var(--muted); }
+
+.chart-box { position: relative; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); padding: 8px 4px 4px; }
+#chart { display: block; width: 100%; height: 180px; touch-action: pan-y; }
+#chart text { font: 400 11px var(--font-mono); fill: var(--muted); font-variant-numeric: tabular-nums; }
+#chart text.end { fill: var(--ink); font-weight: 500; }
+.chart-empty { position: absolute; inset: 0; display: grid; place-items: center; font-size: 13px; color: var(--muted); padding: 16px; text-align: center; }
+.tip {
+  position: absolute;
+  top: 6px;
+  pointer-events: none;
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--raised);
+  font: 400 12px/1.4 var(--font-mono);
+  color: var(--ink);
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+.tip b { font-weight: 500; }
+.tip .t-muted { color: var(--muted); }
+
+.experts { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.ex-head { display: flex; align-items: baseline; gap: 8px; }
+.ex-name { font-weight: 600; }
+.ex-chip {
+  font: 500 10px/1 var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 3px 5px 2px;
+}
+.ex-val { margin-left: auto; font: 500 12px/1 var(--font-mono); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.meter { height: 6px; margin-top: 6px; border-radius: 3px; background: var(--accent-soft); overflow: hidden; }
+.meter span { display: block; height: 100%; border-radius: 3px; background: var(--accent); transition: width 0.4s ease; }
+.ex-desc { margin-top: 5px; font-size: 13px; color: var(--muted); }
+
+.notes { list-style: none; margin: 0; padding: 0; display: grid; }
+.notes li { padding: 10px 0; border-top: 1px solid var(--line); color: var(--ink); }
+.notes li:last-child { border-bottom: 1px solid var(--line); }
+.notes li.empty { color: var(--muted); font-size: 14px; }
+
+.forget { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; font-size: 13px; color: var(--muted); }
+.link-btn {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 2px 0;
+  color: var(--ink-2);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.link-btn:hover { color: var(--ink); }
+.danger-btn {
+  appearance: none;
+  border: 1.5px solid var(--miss);
+  background: var(--miss);
+  color: var(--raised);
+  border-radius: 8px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+.link-btn:focus-visible, .danger-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.confirm { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; color: var(--ink); }
+
+@media (prefers-reduced-motion: reduce) {
+  .seal-inner, .opt, .meter span { transition: none; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1 class="brand-name">Predictable<span>.</span></h1>
+      <p class="brand-sub">Pick whatever you want. Before each pick, a small model locks in a guess based on everything you've chosen so far. The more you play, the more it learns your habits.</p>
+    </div>
+    <div class="controls">
+      <label for="topic" class="mono-label">Topics</label>
+      <select id="topic"></select>
+    </div>
+  </header>
+
+  <main class="grid">
+    <section class="bench" aria-labelledby="prompt">
+      <div class="trial-meta">
+        <span id="trialNo">Trial 001</span>
+        <span id="trialCat">Colors</span>
+        <span id="trialChance" class="push">Chance 25%</span>
+      </div>
+      <h2 id="prompt" class="prompt">Pick a color</h2>
+
+      <div class="seal" id="seal" data-state="sealed">
+        <div class="seal-inner">
+          <div class="seal-face seal-back" aria-hidden="true">
+            <span class="mono-label">Its guess</span>
+            <strong>Locked in</strong>
+            <span class="seal-note">Revealed after you pick</span>
+          </div>
+          <div class="seal-face seal-front" id="sealFront">
+            <span class="mono-label">It guessed</span>
+            <strong id="guessLabel">&nbsp;</strong>
+            <span class="seal-note" id="guessConf">&nbsp;</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="options" id="options" role="group" aria-labelledby="prompt"></div>
+
+      <p class="verdict" id="verdict" aria-live="polite">&nbsp;</p>
+
+      <div class="strip-wrap">
+        <div class="block-head">
+          <span class="mono-label">Last 40 trials</span>
+          <div class="strip-key"><span><i class="h"></i>It guessed right</span><span><i></i>It missed</span></div>
+        </div>
+        <div class="strip" id="strip"></div>
+      </div>
+    </section>
+
+    <aside class="read" aria-labelledby="readTitle">
+      <h2 id="readTitle" class="read-title">Its read on you</h2>
+
+      <div class="stats">
+        <div class="stat">
+          <span class="stat-label">Hit rate</span>
+          <span class="stat-value" id="statHit">–</span>
+          <span class="stat-sub" id="statEdge">No trials yet</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Chance</span>
+          <span class="stat-value" id="statChance">–</span>
+          <span class="stat-sub">Random guessing</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Last 20</span>
+          <span class="stat-value" id="statRecent">–</span>
+          <span class="stat-sub" id="statTrials">0 trials</span>
+        </div>
+      </div>
+
+      <div class="block">
+        <div class="block-head">
+          <h3>Hit rate over time</h3>
+          <div class="legend"><span><i></i>Last 20 trials</span><span><i class="c"></i>Chance</span></div>
+        </div>
+        <div class="chart-box" id="chartBox">
+          <svg id="chart" role="img" aria-label="Hit rate over the last 20 trials, by trial"></svg>
+          <div class="tip" id="tip" hidden></div>
+          <p class="chart-empty" id="chartEmpty">The line starts after a few trials.</p>
+        </div>
+      </div>
+
+      <div class="block">
+        <div class="block-head">
+          <h3>How it guesses</h3>
+          <span class="mono-label">Share of the vote</span>
+        </div>
+        <p class="block-note">Seven simple strategies vote on every guess. The ones that have been right about you get more say.</p>
+        <ul class="experts" id="experts"></ul>
+      </div>
+
+      <div class="block">
+        <div class="block-head"><h3>What it has noticed</h3></div>
+        <ul class="notes" id="notes"></ul>
+      </div>
+
+      <div class="forget">
+        <span>Your history is saved in this browser.</span>
+        <button type="button" class="link-btn" id="forgetBtn">Forget my history</button>
+        <span class="confirm" id="forgetConfirm" hidden>
+          Clear all <b id="forgetCount">0</b> trials?
+          <button type="button" class="danger-btn" id="forgetYes">Clear</button>
+          <button type="button" class="link-btn" id="forgetNo">Keep</button>
+        </span>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<script>
+'use strict';
+
+const ETA = 0.5;          // learning rate for strategy weights
+const SHARE = 0.02;       // weight every strategy keeps, so it can recover when your habits change
+const DECAY = 0.6;        // how fast "Recent picks" forgets
+const WINDOW = 20;        // rolling window for the chart and "Last 20"
+const REVEAL_MS = 1100;
+const MAX_HISTORY = 3000;
+const STORE_KEY = 'predictable.v1';
+
+const sw = c => `<span class="sw" style="background:var(--sw-${c})"></span>`;
+const g = (ch, cls = '') => `<span class="glyph ${cls}">${ch}︎</span>`;
+const svg = inner => `<svg viewBox="0 0 20 20" aria-hidden="true">${inner}</svg>`;
+const L = (...labels) => labels.map(label => ({ label }));
+
+const CATS = [
+  { id: 'color', name: 'Colors', prompt: 'Pick a color', options: [
+    { label: 'Red', glyph: sw('red') }, { label: 'Blue', glyph: sw('blue') },
+    { label: 'Green', glyph: sw('green') }, { label: 'Yellow', glyph: sw('yellow') } ] },
+  { id: 'number', name: 'Numbers', prompt: 'Pick a number', ordered: true, options: L('1', '2', '3', '4') },
+  { id: 'coin', name: 'Coin', prompt: 'Heads or tails?', ordered: true, options: L('Heads', 'Tails') },
+  { id: 'rps', name: 'Rock paper scissors', prompt: 'Rock, paper or scissors?', ordered: true, options: L('Rock', 'Paper', 'Scissors') },
+  { id: 'suit', name: 'Suits', prompt: 'Pick a suit', options: [
+    { label: 'Spades', glyph: g('♠') }, { label: 'Hearts', glyph: g('♥', 'red') },
+    { label: 'Diamonds', glyph: g('♦', 'red') }, { label: 'Clubs', glyph: g('♣') } ] },
+  { id: 'shape', name: 'Shapes', prompt: 'Pick a shape', options: [
+    { label: 'Circle', glyph: svg('<circle cx="10" cy="10" r="7.5" fill="currentColor"/>') },
+    { label: 'Square', glyph: svg('<rect x="3" y="3" width="14" height="14" rx="1.5" fill="currentColor"/>') },
+    { label: 'Triangle', glyph: svg('<path d="M10 2.5 18 17H2z" fill="currentColor"/>') } ] },
+  { id: 'door', name: 'Doors', prompt: 'Pick a door', ordered: true, options: L('Door 1', 'Door 2', 'Door 3') },
+  { id: 'dir', name: 'Directions', prompt: 'Pick a direction', options: [
+    { label: 'Up', glyph: g('↑') }, { label: 'Down', glyph: g('↓') },
+    { label: 'Left', glyph: g('←') }, { label: 'Right', glyph: g('→') } ] },
+  { id: 'animal', name: 'Animals', prompt: 'Pick an animal', options: L('Cat', 'Dog', 'Owl', 'Fox') },
+  { id: 'element', name: 'Elements', prompt: 'Pick an element', options: L('Fire', 'Water', 'Earth', 'Air') },
+  { id: 'fruit', name: 'Fruit', prompt: 'Pick a fruit', options: L('Apple', 'Banana', 'Cherry', 'Grape') },
+  { id: 'letter', name: 'Letters', prompt: 'Pick a letter', ordered: true, options: L('A', 'B', 'C', 'D') },
+];
+const CAT_BY_ID = Object.fromEntries(CATS.map(c => [c.id, c]));
+
+/* ---------- helpers ---------- */
+
+const $ = s => document.querySelector(s);
+const zeros = n => new Array(n).fill(0);
+const uniform = n => new Array(n).fill(1 / n);
+const sum = a => a.reduce((x, y) => x + y, 0);
+const pct = x => Math.round(x * 100) + '%';
+const pad = n => String(n).padStart(3, '0');
+function normalize(a) { const s = sum(a); return s > 0 ? a.map(v => v / s) : uniform(a.length); }
+function addEach(arr, n, k) { const a = new Array(n); for (let i = 0; i < n; i++) a[i] = (arr ? arr[i] : 0) + k; return a; }
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function argmax(a) { let b = 0; for (let i = 1; i < a.length; i++) if (a[i] > a[b]) b = i; return b; }
+// 0 = first on screen, 1 = somewhere in the middle, 2 = last on screen
+function posClass(i, n) { return i === 0 ? 0 : i === n - 1 ? 2 : 1; }
+// How many times more often than chance something happened, pulled toward 1 when data is thin
+function lift(s) { return (s.yes + 1) / (s.exp + 1); }
+// Put probability p = lift/n on one option and share the rest
+function focusOn(n, target, l) {
+  const p = Math.min(0.95, Math.max(0.02, l / n));
+  const a = new Array(n).fill((1 - p) / (n - 1));
+  a[target] = p;
+  return a;
+}
+// Share of a hit an expert gets when it ties between several options
+function credit(p, pick) {
+  const mx = Math.max(...p);
+  if (p[pick] < mx - 1e-9) return 0;
+  return 1 / p.filter(v => v >= mx - 1e-9).length;
+}
+
+/* ---------- the model ---------- */
+
+// Each strategy returns a probability for every option of the topic (indexed by option, not screen position).
+const EXPERTS = [
+  { id: 'fav', name: 'Favorites', desc: 'What you pick most in each topic.',
+    fn: (m, cat) => normalize(addEach(m.count[cat.id], cat.options.length, 1)) },
+  { id: 'recent', name: 'Recent picks', desc: 'What you have picked lately in each topic.',
+    fn: (m, cat) => normalize(addEach(m.recent[cat.id], cat.options.length, 0.25)) },
+  { id: 'pos', name: 'Position', desc: 'Where on screen you tend to click.',
+    fn: (m, cat, order) => {
+      const n = order.length, c = m.pos[n] || zeros(n), a = zeros(n);
+      order.forEach((oi, i) => { a[oi] = c[i] + 1; });
+      return normalize(a);
+    } },
+  { id: 'repeat', name: 'Repeats', desc: 'Whether you pick the same thing as last time.',
+    fn: (m, cat) => {
+      const n = cat.options.length, last = m.last[cat.id];
+      return last == null ? uniform(n) : focusOn(n, last, lift(m.rep));
+    } },
+  { id: 'seq', name: 'Sequences', desc: 'What you tend to pick right after a given pick.',
+    fn: (m, cat) => {
+      const n = cat.options.length, last = m.last[cat.id];
+      if (last == null) return uniform(n);
+      return normalize(addEach(m.trans[cat.id] && m.trans[cat.id][last], n, 0.5));
+    } },
+  { id: 'rhythm', name: 'Rhythm', desc: 'How your click position moves from one trial to the next.',
+    fn: (m, cat, order) => {
+      const n = order.length;
+      if (m.lastPos == null) return uniform(n);
+      const row = m.posTrans[m.lastPos], members = [0, 0, 0], a = zeros(n);
+      order.forEach((_, i) => members[posClass(i, n)]++);
+      order.forEach((oi, i) => { const c = posClass(i, n); a[oi] = (row[c] + 1) / members[c]; });
+      return normalize(a);
+    } },
+  { id: 'dodge', name: 'Dodging', desc: 'How you react after it guesses you right or wrong.',
+    fn: (m, cat) => {
+      const n = cat.options.length, lg = m.lastGuess[cat.id];
+      if (!lg) return uniform(n);
+      return focusOn(n, lg.g, lift(lg.hit ? m.dodge.hit : m.dodge.miss));
+    } },
+];
+
+function newModel() {
+  return {
+    count: {}, recent: {}, last: {}, lastGuess: {}, trans: {}, pos: {},
+    lastPos: null,
+    posTrans: [[0, 0, 0], [0, 0, 0], [0, 0, 0]],
+    posSeen: [0, 0, 0], posExp: [0, 0, 0],
+    rep: { yes: 0, exp: 0, total: 0 },
+    dodge: { hit: { yes: 0, exp: 0, total: 0 }, miss: { yes: 0, exp: 0, total: 0 } },
+    w: uniform(EXPERTS.length),
+    ex: EXPERTS.map(() => ({ hit: 0, total: 0 })),
+    trials: 0, hits: 0, chance: 0,
+  };
+}
+
+function predict(m, cat, order) {
+  const n = cat.options.length;
+  const preds = EXPERTS.map(e => e.fn(m, cat, order));
+  const mix = zeros(n);
+  preds.forEach((p, k) => p.forEach((v, j) => { mix[j] += m.w[k] * v; }));
+  const mx = Math.max(...mix);
+  const top = mix.map((v, j) => j).filter(j => mix[j] >= mx - 1e-9);
+  const guess = top[Math.floor(Math.random() * top.length)];
+  return { preds, guess, conf: mix[guess] };
+}
+
+function observe(m, rec, preds) {
+  const cat = CAT_BY_ID[rec.c], n = cat.options.length, pick = rec.p, i = rec.o.indexOf(pick), key = cat.id;
+
+  // Re-weight the strategies by how much probability each gave to what you actually picked
+  const w = normalize(m.w.map((wk, k) => wk * Math.exp(ETA * Math.log(Math.max(preds[k][pick], 1e-6)))));
+  m.w = w.map(wk => (1 - SHARE) * wk + SHARE / w.length);
+  preds.forEach((p, k) => { m.ex[k].total++; m.ex[k].hit += credit(p, pick); });
+
+  const last = m.last[key];
+  if (last != null) {
+    m.rep.total++; m.rep.exp += 1 / n; if (pick === last) m.rep.yes++;
+    const t = m.trans[key] || (m.trans[key] = {});
+    (t[last] || (t[last] = zeros(n)))[pick]++;
+  }
+  const lg = m.lastGuess[key];
+  if (lg) {
+    const b = lg.hit ? m.dodge.hit : m.dodge.miss;
+    b.total++; b.exp += 1 / n; if (pick === lg.g) b.yes++;
+  }
+
+  (m.count[key] || (m.count[key] = zeros(n)))[pick]++;
+  const r = m.recent[key] || (m.recent[key] = zeros(n));
+  for (let k = 0; k < n; k++) r[k] *= DECAY;
+  r[pick] += 1;
+
+  (m.pos[n] || (m.pos[n] = zeros(n)))[i]++;
+  const pc = posClass(i, n);
+  m.posSeen[pc]++;
+  m.posExp[0] += 1 / n; m.posExp[1] += (n - 2) / n; m.posExp[2] += 1 / n;
+  if (m.lastPos != null) m.posTrans[m.lastPos][pc]++;
+  m.lastPos = pc;
+
+  m.last[key] = pick;
+  m.lastGuess[key] = { g: rec.g, hit: rec.g === pick };
+  m.trials++;
+  if (rec.g === pick) m.hits++;
+  m.chance += 1 / n;
+}
+
+function insights(m) {
+  const out = [];
+  if (m.trials >= 12) {
+    const where = ['the first option on screen', 'a middle option', 'the last option on screen'];
+    for (let c = 0; c < 3; c++) {
+      if (m.posExp[c] < 4) continue;
+      const obs = m.posSeen[c] / m.trials, exp = m.posExp[c] / m.trials, l = obs / exp;
+      if (l >= 1.3) out.push({ s: l, text: `You pick ${where[c]} ${pct(obs)} of the time. Chance is ${pct(exp)}.` });
+    }
+  }
+  if (m.rep.total >= 8) {
+    const obs = m.rep.yes / m.rep.total, exp = m.rep.exp / m.rep.total, l = obs / exp;
+    if (l <= 0.6) out.push({ s: 1 / Math.max(l, 0.25), text: `You repeat your last pick in a topic only ${pct(obs)} of the time. Chance is ${pct(exp)}.` });
+    else if (l >= 1.4) out.push({ s: l, text: `You repeat your last pick in a topic ${pct(obs)} of the time. Chance is ${pct(exp)}.` });
+  }
+  const d = m.dodge.hit;
+  if (d.total >= 5) {
+    const obs = d.yes / d.total, exp = d.exp / d.total, l = obs / exp;
+    if (l <= 0.5) out.push({ s: 1 / Math.max(l, 0.25), text: `After it guesses you right, you switch to something else. You picked the same thing again ${pct(obs)} of the time.` });
+    else if (l >= 1.5) out.push({ s: l, text: `After it guesses you right, you often pick the same thing again (${pct(obs)} of the time).` });
+  }
+  for (const cat of CATS) {
+    const cnt = m.count[cat.id];
+    if (!cnt) continue;
+    const tot = sum(cnt), n = cat.options.length;
+    if (tot < 5) continue;
+    const top = argmax(cnt), share = cnt[top] / tot;
+    if (share >= 0.45 && share >= 1.6 / n) out.push({ s: share * n, text: `In ${cat.name.toLowerCase()}, ${cnt[top]} of your ${tot} picks were ${cat.options[top].label}.` });
+  }
+  for (const cat of CATS) {
+    const t = m.trans[cat.id];
+    if (!t) continue;
+    const n = cat.options.length;
+    for (const from of Object.keys(t)) {
+      const row = t[from], tot = sum(row);
+      if (tot < 4) continue;
+      const to = argmax(row), share = row[to] / tot;
+      if (share >= 0.65 && share >= 2 / n) {
+        const a = cat.options[from].label, b = cat.options[to].label;
+        out.push({ s: share * n * 0.9, text: `In ${cat.name.toLowerCase()}, after ${a} you picked ${+from === to ? b + ' again' : b} ${row[to]} of ${tot} times.` });
+      }
+    }
+  }
+  return out.sort((x, y) => y.s - x.s).slice(0, 5);
+}
+
+/* ---------- game state ---------- */
+
+let history = [];
+let model = newModel();
+let topic = 'all';
+let current = null;
+let revealing = false;
+let timer = null;
+let chartData = null;
+
+function sanitize(list) {
+  if (!Array.isArray(list)) return null;
+  return list.filter(r => {
+    const cat = r && CAT_BY_ID[r.c];
+    if (!cat) return false;
+    const n = cat.options.length, ok = i => Number.isInteger(i) && i >= 0 && i < n;
+    return Array.isArray(r.o) && r.o.length === n && new Set(r.o).size === n && r.o.every(ok) && ok(r.p) && ok(r.g);
+  }).slice(-MAX_HISTORY);
+}
+function loadSaved() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (e) { return {}; }
+}
+function save() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify({ history, topic })); } catch (e) { /* storage unavailable */ }
+}
+
+function rebuild() {
+  model = newModel();
+  for (const rec of history) {
+    const cat = CAT_BY_ID[rec.c];
+    observe(model, rec, EXPERTS.map(e => e.fn(model, cat, rec.o)));
+  }
+}
+
+function nextTrial() {
+  clearTimeout(timer);
+  revealing = false;
+  const pool = topic === 'all' ? CATS : [CAT_BY_ID[topic]];
+  const cat = pool[Math.floor(Math.random() * pool.length)];
+  const idx = cat.options.map((_, i) => i);
+  const order = cat.ordered ? idx : shuffle(idx);
+  // The guess is made here, before the options are even shown
+  current = { cat, order, ...predict(model, cat, order) };
+  renderTrial();
+}
+
+function pick(pos) {
+  if (!current || revealing || pos < 0 || pos >= current.order.length) return;
+  revealing = true;
+  const { cat, order, guess, conf, preds } = current;
+  const p = order[pos], hit = p === guess;
+  const rec = { c: cat.id, o: order, p, g: guess };
+  observe(model, rec, preds);
+  history.push(rec);
+  if (history.length > MAX_HISTORY) history.splice(0, history.length - MAX_HISTORY);
+  save();
+
+  const front = $('#sealFront');
+  front.classList.toggle('is-hit', hit);
+  front.classList.toggle('is-miss', !hit);
+  $('#guessLabel').textContent = cat.options[guess].label;
+  $('#guessConf').textContent = `${pct(conf)} sure · ${hit ? 'hit' : 'miss'}`;
+  $('#seal').dataset.state = 'open';
+
+  [...$('#options').children].forEach((b, i) => {
+    const oi = order[i];
+    b.classList.add('is-locked');
+    b.setAttribute('aria-disabled', 'true');
+    b.classList.toggle('is-pick', oi === p);
+    b.classList.toggle('is-guess', oi === guess);
+    b.classList.toggle('is-dim', oi !== p && oi !== guess);
+  });
+
+  const no = pad(model.trials), gl = cat.options[guess].label, pl = cat.options[p].label;
+  $('#verdict').innerHTML = hit
+    ? `<b class="v-hit">Trial ${no}: hit.</b> It called ${gl}.`
+    : `<b class="v-miss">Trial ${no}: miss.</b> It called ${gl}, you picked ${pl}.`;
+
+  renderRead();
+  timer = setTimeout(nextTrial, REVEAL_MS);
+}
+
+/* ---------- rendering ---------- */
+
+function renderTrial() {
+  const { cat, order } = current, n = order.length, box = $('#options');
+  $('#trialNo').textContent = 'Trial ' + pad(model.trials + 1);
+  $('#trialCat').textContent = cat.name;
+  $('#trialChance').textContent = 'Chance ' + pct(1 / n);
+  $('#prompt').textContent = cat.prompt;
+  $('#seal').dataset.state = 'sealed';
+
+  const focused = box.contains(document.activeElement) ? [...box.children].indexOf(document.activeElement) : -1;
+  box.style.setProperty('--n', n);
+  box.dataset.n = n;
+  box.innerHTML = order.map((oi, i) => {
+    const o = cat.options[oi];
+    return `<button type="button" class="opt" data-pos="${i}"><kbd>${i + 1}</kbd>` +
+      (o.glyph ? `<span class="glyph-wrap">${o.glyph}</span>` : '') +
+      `<span class="opt-label">${o.label}</span></button>`;
+  }).join('');
+  if (focused >= 0) box.children[Math.min(focused, n - 1)].focus();
+  if (!model.trials) $('#verdict').textContent = `Pick one. Number keys 1 to ${n} work too.`;
+}
+
+function renderStrip() {
+  const last = history.slice(-40), strip = $('#strip');
+  if (!last.length) {
+    strip.innerHTML = '<span class="strip-empty">Nothing yet.</span>';
+    strip.removeAttribute('aria-label');
+    return;
+  }
+  const first = model.trials - last.length + 1;
+  strip.innerHTML = last.map((r, i) => {
+    const hit = r.p === r.g;
+    return `<i class="${hit ? 'h' : ''}" title="Trial ${first + i}: ${hit ? 'hit' : 'miss'}"></i>`;
+  }).join('');
+  strip.setAttribute('role', 'img');
+  strip.setAttribute('aria-label', `${last.filter(r => r.p === r.g).length} hits in the last ${last.length} trials`);
+}
+
+function buildExperts() {
+  $('#experts').innerHTML = EXPERTS.map(e => `
+    <li class="ex" data-id="${e.id}">
+      <div class="ex-head"><span class="ex-name">${e.name}</span><span class="ex-chip" hidden>Leading</span><span class="ex-val"></span></div>
+      <div class="meter" aria-hidden="true"><span></span></div>
+      <p class="ex-desc">${e.desc} <span class="ex-acc"></span></p>
+    </li>`).join('');
+}
+
+function renderExperts() {
+  const m = model, maxW = Math.max(...m.w), lead = m.w.indexOf(maxW);
+  const spread = maxW - Math.min(...m.w) > 0.01;
+  [...$('#experts').children].forEach((li, k) => {
+    const s = m.ex[k];
+    li.querySelector('.ex-val').textContent = pct(m.w[k]);
+    li.querySelector('.meter span').style.width = (m.w[k] * 100).toFixed(1) + '%';
+    li.querySelector('.ex-chip').hidden = !(spread && k === lead);
+    li.querySelector('.ex-acc').textContent = s.total ? `On its own it would hit ${pct(s.hit / s.total)}.` : '';
+  });
+}
+
+function renderNotes() {
+  const list = insights(model), ul = $('#notes');
+  if (!list.length) {
+    ul.innerHTML = `<li class="empty">${model.trials < 12
+      ? 'Nothing yet. Patterns show up here after about a dozen trials.'
+      : 'No strong patterns so far. You are hard to read.'}</li>`;
+    return;
+  }
+  ul.innerHTML = list.map(x => `<li>${x.text}</li>`).join('');
+}
+
+function renderRead() {
+  const m = model, T = m.trials;
+  const hitP = T ? Math.round(m.hits / T * 100) : 0, chP = T ? Math.round(m.chance / T * 100) : 0;
+  $('#statHit').textContent = T ? hitP + '%' : '–';
+  $('#statChance').textContent = T ? chP + '%' : '–';
+  const edge = hitP - chP;
+  $('#statEdge').textContent = !T ? 'No trials yet'
+    : edge > 0 ? `${edge} points above chance`
+    : edge < 0 ? `${-edge} points below chance`
+    : 'Same as chance';
+  const recent = history.slice(-WINDOW);
+  $('#statRecent').textContent = recent.length ? pct(recent.filter(r => r.p === r.g).length / recent.length) : '–';
+  $('#statTrials').textContent = `${T} trial${T === 1 ? '' : 's'} played`;
+  renderStrip();
+  renderExperts();
+  renderNotes();
+  drawChart();
+}
+
+function drawChart() {
+  const box = $('#chartBox'), chart = $('#chart'), N = history.length;
+  $('#tip').hidden = true;
+  if (N < 3) {
+    chart.innerHTML = '';
+    chartData = null;
+    $('#chartEmpty').hidden = false;
+    return;
+  }
+  $('#chartEmpty').hidden = true;
+  const W = Math.max(240, Math.round(chart.getBoundingClientRect().width) || 480), H = 180;
+  const PL = 38, PR = 44, PT = 10, PB = 24;
+  chart.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+  const acc = [], ch = [];
+  let hs = 0, cs = 0;
+  const hitAt = t => (history[t].p === history[t].g ? 1 : 0);
+  const chAt = t => 1 / CAT_BY_ID[history[t].c].options.length;
+  for (let t = 0; t < N; t++) {
+    hs += hitAt(t); cs += chAt(t);
+    if (t >= WINDOW) { hs -= hitAt(t - WINDOW); cs -= chAt(t - WINDOW); }
+    const len = Math.min(t + 1, WINDOW);
+    acc.push(hs / len); ch.push(cs / len);
+  }
+  const x = t => PL + (t / (N - 1)) * (W - PL - PR);
+  const y = v => PT + (1 - v) * (H - PT - PB);
+  const line = arr => arr.map((v, t) => `${t ? 'L' : 'M'}${x(t).toFixed(1)},${y(v).toFixed(1)}`).join('');
+
+  let s = '';
+  for (const v of [0, 0.25, 0.5, 0.75, 1]) {
+    s += `<line x1="${PL}" x2="${W - PR}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1"/>`;
+    s += `<text x="${PL - 8}" y="${y(v) + 4}" text-anchor="end">${v * 100}%</text>`;
+  }
+  s += `<text x="${PL}" y="${H - 6}">Trial 1</text>`;
+  s += `<text x="${W - PR}" y="${H - 6}" text-anchor="end">Trial ${model.trials}</text>`;
+  s += `<path d="${line(acc)}L${x(N - 1)},${y(0)}L${x(0)},${y(0)}Z" fill="var(--accent)" fill-opacity="0.1" stroke="none"/>`;
+  s += `<path d="${line(ch)}" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+  s += `<path d="${line(acc)}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  const ex = x(N - 1), ey = y(acc[N - 1]);
+  s += `<circle cx="${ex}" cy="${ey}" r="4" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>`;
+  s += `<text class="end" x="${ex + 8}" y="${ey + 4}">${pct(acc[N - 1])}</text>`;
+  s += `<g id="cross" visibility="hidden"><line id="crossLine" y1="${PT}" y2="${H - PB}" stroke="var(--ink-2)" stroke-width="1"/>` +
+       `<circle id="crossDot" r="4" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/></g>`;
+  chart.innerHTML = s;
+  chartData = { W, PL, PR, N, acc, ch, x, y, offset: model.trials - N };
+}
+
+function moveTip(e) {
+  if (!chartData) return;
+  const { W, PL, PR, N, acc, ch, x, y, offset } = chartData;
+  const chart = $('#chart'), r = chart.getBoundingClientRect(), tip = $('#tip');
+  const px = (e.clientX - r.left) * (W / r.width);
+  const t = Math.max(0, Math.min(N - 1, Math.round((px - PL) / (W - PL - PR) * (N - 1))));
+  const cross = $('#cross');
+  cross.setAttribute('visibility', 'visible');
+  $('#crossLine').setAttribute('x1', x(t));
+  $('#crossLine').setAttribute('x2', x(t));
+  $('#crossDot').setAttribute('cx', x(t));
+  $('#crossDot').setAttribute('cy', y(acc[t]));
+  const trial = offset + t + 1, from = Math.max(offset + 1, trial - WINDOW + 1);
+  tip.innerHTML = `<b>Trial ${trial}</b><br>Hit rate ${pct(acc[t])} <span class="t-muted">(trials ${from}–${trial})</span><br><span class="t-muted">Chance ${pct(ch[t])}</span>`;
+  tip.hidden = false;
+  const boxW = $('#chartBox').clientWidth, left = x(t) * (r.width / W) + 4;
+  const tw = tip.offsetWidth;
+  tip.style.left = Math.max(4, Math.min(boxW - tw - 4, left - tw / 2)) + 'px';
+}
+function hideTip() {
+  $('#tip').hidden = true;
+  const cross = $('#cross');
+  if (cross) cross.setAttribute('visibility', 'hidden');
+}
+
+function buildTopics() {
+  $('#topic').innerHTML = '<option value="all">All topics, mixed</option>' +
+    CATS.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  $('#topic').value = topic;
+}
+
+/* ---------- events ---------- */
+
+$('#options').addEventListener('click', e => {
+  const b = e.target.closest('.opt');
+  if (b) pick(+b.dataset.pos);
+});
+document.addEventListener('keydown', e => {
+  if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
+  if (/^(SELECT|INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
+  if (/^[1-9]$/.test(e.key) && current && +e.key <= current.order.length) {
+    e.preventDefault();
+    pick(+e.key - 1);
+  }
+});
+$('#topic').addEventListener('change', e => {
+  topic = e.target.value;
+  save();
+  nextTrial();
+});
+$('#forgetBtn').addEventListener('click', () => {
+  $('#forgetCount').textContent = model.trials;
+  $('#forgetBtn').hidden = true;
+  $('#forgetConfirm').hidden = false;
+  $('#forgetNo').focus();
+});
+$('#forgetNo').addEventListener('click', () => {
+  $('#forgetConfirm').hidden = true;
+  $('#forgetBtn').hidden = false;
+});
+$('#forgetYes').addEventListener('click', () => {
+  history = [];
+  model = newModel();
+  save();
+  $('#forgetConfirm').hidden = true;
+  $('#forgetBtn').hidden = false;
+  $('#verdict').textContent = ' ';
+  renderRead();
+  nextTrial();
+});
+$('#chartBox').addEventListener('pointermove', moveTip);
+$('#chartBox').addEventListener('pointerleave', hideTip);
+let resizeFrame = 0;
+new ResizeObserver(() => {
+  cancelAnimationFrame(resizeFrame);
+  resizeFrame = requestAnimationFrame(drawChart);
+}).observe($('#chartBox'));
+
+/* ---------- boot ---------- */
+
+function start(data) {
+  const saved = loadSaved();
+  history = sanitize(data && data.history) || sanitize(saved.history) || [];
+  const t = (data && data.topic) || saved.topic;
+  topic = CAT_BY_ID[t] ? t : 'all';
+  buildTopics();
+  buildExperts();
+  rebuild();
+  renderRead();
+  nextTrial();
+}
+window.claude?.hot?.snapshot?.(() => ({ history, topic }));
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+</script>
+</body>
+</html>
