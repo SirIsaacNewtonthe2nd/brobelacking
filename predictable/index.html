@@ -401,7 +401,7 @@ h1, h2, h3 { text-wrap: balance; }
   <header class="top">
     <div class="brand">
       <h1 class="brand-name">Predictable<span>.</span></h1>
-      <p class="brand-sub">Pick whatever you want. Before each pick, a small model locks in a guess based on everything you've chosen so far. The more you play, the more it learns your habits.</p>
+      <p class="brand-sub">Pick whatever you want. Before each pick, a small model locks in a guess based on everything you've chosen so far. It learns your habits, and if you try to outthink it, it learns that too.</p>
     </div>
     <div class="controls">
       <label for="topic" class="mono-label">Topics</label>
@@ -481,10 +481,19 @@ h1, h2, h3 { text-wrap: balance; }
 
       <div class="block">
         <div class="block-head">
-          <h3>How it guesses</h3>
+          <h3>How far ahead you think</h3>
+          <span class="mono-label">Recent trials</span>
+        </div>
+        <p class="block-note">If you try to avoid what it would guess, it notices and guesses where you'll go instead. If you see that coming and switch back, it learns that too.</p>
+        <ul class="experts" id="levels"></ul>
+      </div>
+
+      <div class="block">
+        <div class="block-head">
+          <h3>What comes naturally to you</h3>
           <span class="mono-label">Share of the vote</span>
         </div>
-        <p class="block-note">Seven simple strategies vote on every guess. The ones that have been right about you get more say.</p>
+        <p class="block-note">Seven simple strategies estimate your natural pick. The ones that have been right about you get more say.</p>
         <ul class="experts" id="experts"></ul>
       </div>
 
@@ -516,6 +525,15 @@ const WINDOW = 20;        // rolling window for the chart and "Last 20"
 const REVEAL_MS = 1100;
 const MAX_HISTORY = 3000;
 const STORE_KEY = 'predictable.v1';
+const THINK_DECAY = 0.85; // how fast its read on your thinking can change
+const THINK_PRIOR = [0.7, 0, 0];
+
+// Level k: you avoid what the model would guess against a level k-1 player
+const LEVELS = [
+  { name: 'Plays it straight', desc: 'Picks what comes naturally.' },
+  { name: 'One step ahead', desc: 'Avoids what it would normally guess.' },
+  { name: 'Two steps ahead', desc: 'Expects it to catch the dodge, so switches back.' },
+];
 
 const sw = c => `<span class="sw" style="background:var(--sw-${c})"></span>`;
 const g = (ch, cls = '') => `<span class="glyph ${cls}">${ch}︎</span>`;
@@ -559,6 +577,10 @@ function normalize(a) { const s = sum(a); return s > 0 ? a.map(v => v / s) : uni
 function addEach(arr, n, k) { const a = new Array(n); for (let i = 0; i < n; i++) a[i] = (arr ? arr[i] : 0) + k; return a; }
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 function argmax(a) { let b = 0; for (let i = 1; i < a.length; i++) if (a[i] > a[b]) b = i; return b; }
+// Which option is its top guess, splitting ties
+function topPicks(a) { const mx = Math.max(...a); return normalize(a.map(v => (v >= mx - 1e-9 ? 1 : 0))); }
+// True when one option clearly stands out, so "its natural guess" means something
+function decisive(a) { const s = [...a].sort((x, y) => y - x); return s[0] - s[1] > 0.02; }
 // 0 = first on screen, 1 = somewhere in the middle, 2 = last on screen
 function posClass(i, n) { return i === 0 ? 0 : i === n - 1 ? 2 : 1; }
 // How many times more often than chance something happened, pulled toward 1 when data is thin
@@ -630,27 +652,80 @@ function newModel() {
     w: uniform(EXPERTS.length),
     ex: EXPERTS.map(() => ({ hit: 0, total: 0 })),
     trials: 0, hits: 0, chance: 0,
+    lv: EXPERTS.map(() => [0, 0, 0]),    // per strategy: decayed log-likelihood of each thinking level
+    top: { yes: 0, exp: 0, total: 0 },   // how often you pick its natural guess
   };
 }
 
-function predict(m, cat, order) {
+// What you'd pick at each thinking level, given your natural pick distribution B
+function thinkLevels(B) {
+  const n = B.length, P = [B];
+  for (let k = 1; k < LEVELS.length; k++) {
+    const q = topPicks(P[k - 1]);
+    const avoid = normalize(B.map((v, j) => v * (1 - q[j])));
+    P.push(avoid.map(v => 0.97 * v + 0.03 / n));
+  }
+  return P;
+}
+
+function levelWeights(scores) {
+  const s = scores.map((v, k) => v + THINK_PRIOR[k]), mx = Math.max(...s);
+  return normalize(s.map(v => Math.exp(v - mx))).map(v => 0.94 * v + 0.02);
+}
+
+// Its overall read on how far ahead you think, weighted by how much it trusts each strategy
+function thinkingRead(m) {
+  const pi = zeros(LEVELS.length);
+  m.lv.forEach((s, e) => levelWeights(s).forEach((v, k) => { pi[k] += m.w[e] * v; }));
+  return pi;
+}
+
+// Everything the model believes about the next pick, before it is made.
+// Each strategy is a theory you might hold about how it guesses (your favorite, your last pick,
+// the spot you usually click...), so each one keeps its own read on whether you're dodging it.
+function think(m, cat, order) {
   const n = cat.options.length;
-  const preds = EXPERTS.map(e => e.fn(m, cat, order));
-  const mix = zeros(n);
-  preds.forEach((p, k) => p.forEach((v, j) => { mix[j] += m.w[k] * v; }));
+  const byLevel = EXPERTS.map(e => thinkLevels(e.fn(m, cat, order)));
+  const preds = byLevel.map((L, e) => {
+    const pi = levelWeights(m.lv[e]), a = zeros(n);
+    L.forEach((P, k) => P.forEach((v, j) => { a[j] += pi[k] * v; }));
+    return a;
+  });
+  const B = zeros(n), mix = zeros(n);
+  byLevel.forEach((L, e) => L[0].forEach((v, j) => { B[j] += m.w[e] * v; }));
+  preds.forEach((p, e) => p.forEach((v, j) => { mix[j] += m.w[e] * v; }));
+  return { preds, byLevel, B, pi: thinkingRead(m), mix };
+}
+
+function predict(m, cat, order) {
+  const ctx = think(m, cat, order), mix = ctx.mix;
   const mx = Math.max(...mix);
   const top = mix.map((v, j) => j).filter(j => mix[j] >= mx - 1e-9);
   const guess = top[Math.floor(Math.random() * top.length)];
-  return { preds, guess, conf: mix[guess] };
+  const straight = argmax(ctx.B), pi = ctx.pi, label = cat.options[straight].label;
+  let reason = '';
+  if (decisive(ctx.B)) {
+    if (guess !== straight) reason = `It figured you'd dodge ${label}.`;
+    else if (pi[2] > Math.max(pi[0], pi[1])) reason = `It figured you'd expect a dodge and go back to ${label}.`;
+  }
+  return { ...ctx, guess, conf: mix[guess], reason };
 }
 
-function observe(m, rec, preds) {
+function observe(m, rec, ctx) {
   const cat = CAT_BY_ID[rec.c], n = cat.options.length, pick = rec.p, i = rec.o.indexOf(pick), key = cat.id;
+  const preds = ctx.preds;
 
   // Re-weight the strategies by how much probability each gave to what you actually picked
   const w = normalize(m.w.map((wk, k) => wk * Math.exp(ETA * Math.log(Math.max(preds[k][pick], 1e-6)))));
   m.w = w.map(wk => (1 - SHARE) * wk + SHARE / w.length);
   preds.forEach((p, k) => { m.ex[k].total++; m.ex[k].hit += credit(p, pick); });
+
+  // Score each strategy's thinking levels, with a short memory so it can follow you when you change approach
+  m.lv = m.lv.map((s, e) => s.map((v, k) => THINK_DECAY * v + Math.log(Math.max(ctx.byLevel[e][k][pick], 1e-6))));
+  if (decisive(ctx.B)) {
+    const g0 = argmax(ctx.B);
+    m.top.total++; m.top.exp += ctx.B[g0]; if (pick === g0) m.top.yes++;
+  }
 
   const last = m.last[key];
   if (last != null) {
@@ -685,6 +760,15 @@ function observe(m, rec, preds) {
 
 function insights(m) {
   const out = [];
+  if (m.top.total >= 12) {
+    const obs = m.top.yes / m.top.total, exp = m.top.exp / m.top.total, l = obs / exp;
+    if (l <= 0.6) out.push({ s: 3 / Math.max(l, 0.2), text: `You avoid what it would normally guess. You picked that option ${pct(obs)} of the time, when your habits point to ${pct(exp)}.` });
+  }
+  if (m.trials >= 15) {
+    const pi = thinkingRead(m), k = argmax(pi);
+    if (k === 2 && pi[2] >= 0.45) out.push({ s: 10, text: 'Lately you think two steps ahead. When it expects you to dodge, you go back to your usual pick.' });
+    else if (k === 1 && pi[1] >= 0.45) out.push({ s: 9, text: 'Lately you play one step ahead, steering away from what it would normally guess.' });
+  }
   if (m.trials >= 12) {
     const where = ['the first option on screen', 'a middle option', 'the last option on screen'];
     for (let c = 0; c < 3; c++) {
@@ -762,7 +846,7 @@ function rebuild() {
   model = newModel();
   for (const rec of history) {
     const cat = CAT_BY_ID[rec.c];
-    observe(model, rec, EXPERTS.map(e => e.fn(model, cat, rec.o)));
+    observe(model, rec, think(model, cat, rec.o));
   }
 }
 
@@ -781,10 +865,10 @@ function nextTrial() {
 function pick(pos) {
   if (!current || revealing || pos < 0 || pos >= current.order.length) return;
   revealing = true;
-  const { cat, order, guess, conf, preds } = current;
+  const { cat, order, guess, conf, reason } = current;
   const p = order[pos], hit = p === guess;
   const rec = { c: cat.id, o: order, p, g: guess };
-  observe(model, rec, preds);
+  observe(model, rec, current);
   history.push(rec);
   if (history.length > MAX_HISTORY) history.splice(0, history.length - MAX_HISTORY);
   save();
@@ -807,8 +891,8 @@ function pick(pos) {
 
   const no = pad(model.trials), gl = cat.options[guess].label, pl = cat.options[p].label;
   $('#verdict').innerHTML = hit
-    ? `<b class="v-hit">Trial ${no}: hit.</b> It called ${gl}.`
-    : `<b class="v-miss">Trial ${no}: miss.</b> It called ${gl}, you picked ${pl}.`;
+    ? `<b class="v-hit">Trial ${no}: hit.</b> It called ${gl}. ${reason}`
+    : `<b class="v-miss">Trial ${no}: miss.</b> It called ${gl}, you picked ${pl}. ${reason}`;
 
   renderRead();
   timer = setTimeout(nextTrial, REVEAL_MS);
@@ -874,6 +958,24 @@ function renderExperts() {
   });
 }
 
+function buildLevels() {
+  $('#levels').innerHTML = LEVELS.map(l => `
+    <li class="ex">
+      <div class="ex-head"><span class="ex-name">${l.name}</span><span class="ex-chip" hidden>Its read</span><span class="ex-val"></span></div>
+      <div class="meter" aria-hidden="true"><span></span></div>
+      <p class="ex-desc">${l.desc}</p>
+    </li>`).join('');
+}
+
+function renderLevels() {
+  const pi = thinkingRead(model), lead = argmax(pi), show = model.trials >= 5;
+  [...$('#levels').children].forEach((li, k) => {
+    li.querySelector('.ex-val').textContent = pct(pi[k]);
+    li.querySelector('.meter span').style.width = (pi[k] * 100).toFixed(1) + '%';
+    li.querySelector('.ex-chip').hidden = !(show && k === lead);
+  });
+}
+
 function renderNotes() {
   const list = insights(model), ul = $('#notes');
   if (!list.length) {
@@ -900,6 +1002,7 @@ function renderRead() {
   $('#statTrials').textContent = `${T} trial${T === 1 ? '' : 's'} played`;
   renderStrip();
   renderExperts();
+  renderLevels();
   renderNotes();
   drawChart();
 }
@@ -1038,6 +1141,7 @@ function start(data) {
   topic = CAT_BY_ID[t] ? t : 'all';
   buildTopics();
   buildExperts();
+  buildLevels();
   rebuild();
   renderRead();
   nextTrial();
