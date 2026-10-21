@@ -1,3 +1,4 @@
+import io
 import os
 import math
 import tempfile
@@ -25,7 +26,6 @@ st.set_page_config(
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-MODEL_PATH = "custom_model.zip"
 SIZE = 400
 CHUNK_SIZE = 5000
 MAX_EVAL_STEPS = 2000
@@ -344,11 +344,6 @@ def render_video(track, states, car_length, car_width):
         os.remove(path)
 
 
-def read_model():
-    with open(MODEL_PATH, "rb") as f:
-        return f.read()
-
-
 def reset_rewards():
     for key, value in REWARD_DEFAULTS.items():
         st.session_state[key] = value
@@ -363,6 +358,11 @@ st.session_state.setdefault("history", [])
 st.session_state.setdefault("best_video", None)
 st.session_state.setdefault("total_steps", 0)
 st.session_state.setdefault("run_note", "")
+# Weights live in the visitor's session so people on the public site never share a model
+st.session_state.setdefault("model_bytes", None)
+
+if "toast" in st.session_state:
+    st.toast(st.session_state.pop("toast"))
 
 # ---------------------------------------------------------------------------
 # Header
@@ -414,12 +414,13 @@ with col_right:
             net_arch = st.text_input("Network layers", "64, 64",
                                      help="Comma-separated hidden layer sizes, e.g. 128, 64")
 
-            has_existing_model = os.path.exists(MODEL_PATH)
+            has_existing_model = st.session_state.model_bytes is not None
             load_saved_weights = st.toggle(
                 "Resume from saved weights",
                 value=False,
                 disabled=not has_existing_model,
-                help="Continues training the last saved model. Network layers are ignored when resuming.",
+                help="Continues training the last model saved in this session. "
+                     "Network layers are ignored when resuming.",
             )
             if not has_existing_model:
                 st.caption("No saved weights yet.")
@@ -468,7 +469,7 @@ if train_clicked:
     if load_saved_weights and has_existing_model:
         lr_value = float(lr)
         ppo_model = PPO.load(
-            MODEL_PATH, env=train_env, device="cpu",
+            io.BytesIO(st.session_state.model_bytes), env=train_env, device="cpu",
             custom_objects={"learning_rate": lr_value, "lr_schedule": lambda _: lr_value},
         )
         notes.insert(0, "Resumed from saved weights.")
@@ -565,7 +566,9 @@ if show_results:
             new_best = episode_reward > best_reward
             if new_best:
                 best_reward = episode_reward
-                ppo_model.save(MODEL_PATH)
+                buf = io.BytesIO()
+                ppo_model.save(buf)
+                st.session_state.model_bytes = buf.getvalue()
                 st.session_state.best_video = render_video(
                     eval_env.track, states, eval_env.car_length, eval_env.car_width)
 
@@ -577,17 +580,18 @@ if show_results:
             })
             draw_results(current_steps, refresh_video=new_best)
 
-        st.toast(f"Training complete. Best score {best_reward:.1f}")
+        # Rerun so the settings panel (drawn before training) picks up the new weights
+        st.session_state.toast = f"Training complete. Best score {best_reward:.1f}"
+        st.rerun()
     else:
         draw_results(history[-1]["Steps"] if history else 0)
 
-    if os.path.exists(MODEL_PATH):
+    if st.session_state.model_bytes is not None:
         with footer:
             st.write("")
-            # The file is only read when someone actually clicks download
             st.download_button(
                 label="Download weights (.zip)",
-                data=read_model,
+                data=st.session_state.model_bytes,
                 file_name="custom_model.zip",
                 mime="application/zip",
                 on_click="ignore",
