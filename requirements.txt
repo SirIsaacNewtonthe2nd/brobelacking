@@ -1,0 +1,9 @@
+streamlit>=1.53
+streamlit-drawable-canvas>=0.13
+stable-baselines3>=2.3
+gymnasium>=1.0
+opencv-python-headless
+imageio
+imageio-ffmpeg
+numpy
+pandas
