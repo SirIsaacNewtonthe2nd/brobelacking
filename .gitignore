@@ -1,2 +1,9 @@
+node_modules
+.idea
+.DS_Store
+.hintrc
+.gitpod.yml
+.env
 __pycache__/
 screenshots/
+.env.*
