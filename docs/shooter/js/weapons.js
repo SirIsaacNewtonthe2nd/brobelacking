@@ -5,8 +5,17 @@
 //   air         extra error while airborne
 //   deadzone    share of the gun's run speed you can still move at and keep first-shot accuracy
 // fe: firing error (bloom) that ramps in from `start` to `end` consecutive shots, up to `max` degrees.
-// recoil.v: vertical kick in degrees added after each shot of a spray. Once the spray passes `hStart`
-//   shots the gun wanders sideways by `hStep` per shot inside +/- `hAmp`; `tail` is the climb after the table ends.
+// recoil follows Valorant's model (terms from patch 11.08):
+//   v / tail      vertical (pitch) kick in degrees after each shot; `tail` once the table runs out.
+//   hStep / hAmp  horizontal (yaw) drift per shot toward the current side (a fifth of it before shot
+//                 `hStart`), then holding at +/- `hAmp` degrees.
+//   protect       protected bullets: the side can't change before this many shots.
+//   switchChance  chance per shot after that for the drift to flip to the other side.
+//   switchTime    seconds the sweep to the other side takes.
+// reload / reloadOne: full reload, and the shorter one when only one round is missing (Outlaw).
+// From patch notes: protected bullets, switch chance and switch time for the Vandal, Phantom, Bulldog and
+// Spectre (11.08), the Stinger's front-loaded climb (11.08), shotgun spread (12.09). The per-shot angles are
+// estimates; Riot doesn't publish them.
 // recovery: seconds to settle back to first-shot accuracy after you stop firing.
 
 const RIFLE_MOVE = 5.4;
@@ -26,7 +35,7 @@ export const WEAPONS = {
     dmg: [[30, 78, 26, 22], [50, 66, 22, 18]],
     spread: { hip: 0.4, ads: 0.4, run: 1.1, walk: 0.75, air: 3.0, deadzone: 0.3 },
     fe: { max: 1.6, start: 1, end: 5 }, recovery: 0.22,
-    recoil: { v: [0.6, 0.6, 0.55, 0.5, 0.45, 0.4], tail: 0.3, hStart: 3, hAmp: 1.0, hStep: 0.4 },
+    recoil: { v: [0.6, 0.6, 0.55, 0.5, 0.45, 0.4], tail: 0.3, hStart: 2, hStep: 0.35, hAmp: 1.0, protect: 2, switchChance: 0.15, switchTime: 0.3 },
     alt: { type: 'burst', count: 3, interval: 0.05, cooldown: 0.35, spread: 1.9 },
   },
   shorty: {
@@ -35,7 +44,7 @@ export const WEAPONS = {
     dmg: [[7, 36, 12, 10], [15, 24, 8, 6], [50, 9, 3, 2]],
     spread: { hip: 4.0, ads: 4.0, run: 0.5, walk: 0.3, air: 1.5, deadzone: 0.3 },
     fe: { max: 0, start: 0, end: 1 }, recovery: 0.3,
-    recoil: { v: [2.5], tail: 2.0, hStart: 0, hAmp: 0.5, hStep: 0.4 },
+    recoil: { v: [2.5], tail: 2.0, hStart: 0, hStep: 0.3, hAmp: 0.5, protect: 0, switchChance: 0.5, switchTime: 0.2 },
     alt: { type: 'none' },
   },
   frenzy: {
@@ -44,7 +53,7 @@ export const WEAPONS = {
     dmg: [[20, 78, 26, 22], [50, 63, 21, 17]],
     spread: { hip: 0.45, ads: 0.45, run: 1.3, walk: 0.8, air: 3.0, deadzone: 0.3 },
     fe: { max: 2.2, start: 2, end: 7 }, recovery: 0.25,
-    recoil: { v: [0.45, 0.55, 0.6, 0.55, 0.5, 0.4], tail: 0.15, hStart: 4, hAmp: 1.6, hStep: 0.5 },
+    recoil: { v: [0.45, 0.55, 0.6, 0.55, 0.5, 0.4], tail: 0.15, hStart: 3, hStep: 0.4, hAmp: 1.6, protect: 3, switchChance: 0.12, switchTime: 0.28 },
     alt: { type: 'none' },
   },
   ghost: {
@@ -53,7 +62,7 @@ export const WEAPONS = {
     dmg: [[30, 105, 30, 25], [50, 87, 25, 21]],
     spread: { hip: 0.3, ads: 0.2, run: 1.6, walk: 1.0, air: 3.5, deadzone: 0.3 },
     fe: { max: 1.2, start: 1, end: 5 }, recovery: 0.22,
-    recoil: { v: [0.5, 0.6, 0.6, 0.5, 0.4], tail: 0.25, hStart: 4, hAmp: 0.8, hStep: 0.3 },
+    recoil: { v: [0.5, 0.6, 0.6, 0.5, 0.4], tail: 0.25, hStart: 3, hStep: 0.25, hAmp: 0.8, protect: 3, switchChance: 0.12, switchTime: 0.3 },
     alt: { type: 'zoom', zoom: 1.25, time: 0.15, rateMult: 1, moveMult: 0.76 },
   },
   sheriff: {
@@ -62,7 +71,7 @@ export const WEAPONS = {
     dmg: [[30, 159, 55, 46], [50, 145, 50, 42]],
     spread: { hip: 0.25, ads: 0.25, run: 3.0, walk: 1.6, air: 6.0, deadzone: 0.3 },
     fe: { max: 2.4, start: 1, end: 3 }, recovery: 0.4,
-    recoil: { v: [2.4, 2.2, 2.0, 1.6, 1.2], tail: 1.0, hStart: 2, hAmp: 1.2, hStep: 0.6 },
+    recoil: { v: [2.4, 2.2, 2.0, 1.6, 1.2], tail: 1.0, hStart: 1, hStep: 0.5, hAmp: 1.2, protect: 1, switchChance: 0.2, switchTime: 0.3 },
     alt: { type: 'zoom', zoom: 1.25, time: 0.15, rateMult: 1, moveMult: 0.76 },
   },
 
@@ -73,7 +82,7 @@ export const WEAPONS = {
     dmg: [[15, 67, 27, 22], [50, 62, 25, 21]],
     spread: { hip: 0.65, ads: 0.5, run: 2.0, walk: 1.2, air: 4.0, deadzone: 0.3 },
     fe: { max: 2.4, start: 2, end: 8 }, recovery: 0.3,
-    recoil: { v: [0.25, 0.4, 0.5, 0.55, 0.5, 0.45, 0.35, 0.25], tail: 0.05, hStart: 6, hAmp: 2.2, hStep: 0.55 },
+    recoil: { v: [0.45, 0.6, 0.6, 0.5, 0.35, 0.25, 0.15, 0.1], tail: 0.05, hStart: 4, hStep: 0.45, hAmp: 2.2, protect: 4, switchChance: 0.1, switchTime: 0.28 },
     alt: { type: 'zoomBurst', zoom: 1.15, time: 0.2, moveMult: 0.76, count: 4, interval: 0.0556, cooldown: 0.28 },
   },
   spectre: {
@@ -81,8 +90,8 @@ export const WEAPONS = {
     rate: 13.33, mag: 30, reserve: 90, reload: 2.25, equip: 0.75, pen: 'medium', move: LIGHT_MOVE,
     dmg: [[20, 78, 26, 22], [50, 66, 22, 18]],
     spread: { hip: 0.4, ads: 0.25, run: 1.6, walk: 1.0, air: 4.0, deadzone: 0.3 },
-    fe: { max: 1.3, start: 3, end: 9 }, recovery: 0.3,
-    recoil: { v: [0.15, 0.25, 0.3, 0.35, 0.35, 0.3, 0.25, 0.2, 0.15], tail: 0.05, hStart: 7, hAmp: 1.6, hStep: 0.35 },
+    fe: { max: 1.4, start: 3, end: 9 }, recovery: 0.3,
+    recoil: { v: [0.15, 0.25, 0.3, 0.35, 0.35, 0.3, 0.25, 0.2, 0.15], tail: 0.05, hStart: 5, hStep: 0.3, hAmp: 1.6, protect: 5, switchChance: 0.1, switchTime: 0.28 },
     alt: { type: 'zoom', zoom: 1.15, time: 0.2, rateMult: 0.9, moveMult: 0.76 },
   },
 
@@ -91,18 +100,18 @@ export const WEAPONS = {
     name: 'Bucky', cat: 'Shotgun', slot: 'primary', cost: 850, model: 'shotgun', auto: false,
     rate: 1.1, mag: 5, reserve: 10, reload: 2.5, equip: 1.0, pen: 'low', move: LIGHT_MOVE, pellets: 15,
     dmg: [[8, 40, 20, 17], [12, 26, 13, 11], [50, 18, 9, 7]],
-    spread: { hip: 2.6, ads: 2.6, run: 0.5, walk: 0.3, air: 1.5, deadzone: 0.3 },
+    spread: { hip: 3.0, ads: 3.0, run: 0.5, walk: 0.3, air: 1.5, deadzone: 0.3 },
     fe: { max: 0, start: 0, end: 1 }, recovery: 0.5,
-    recoil: { v: [3.0], tail: 3.0, hStart: 0, hAmp: 0.5, hStep: 0.4 },
+    recoil: { v: [3.0], tail: 3.0, hStart: 0, hStep: 0.3, hAmp: 0.5, protect: 0, switchChance: 0.5, switchTime: 0.2 },
     alt: { type: 'none' },
   },
   judge: {
     name: 'Judge', cat: 'Shotgun', slot: 'primary', cost: 1850, model: 'shotgun', auto: true,
     rate: 3.5, mag: 7, reserve: 21, reload: 2.2, equip: 1.0, pen: 'medium', move: LIGHT_MOVE, pellets: 12,
     dmg: [[10, 34, 17, 14], [15, 26, 13, 11], [50, 20, 10, 8]],
-    spread: { hip: 2.25, ads: 2.25, run: 0.5, walk: 0.3, air: 1.5, deadzone: 0.3 },
+    spread: { hip: 2.5, ads: 2.5, run: 0.5, walk: 0.3, air: 1.5, deadzone: 0.3 },
     fe: { max: 0.6, start: 1, end: 4 }, recovery: 0.4,
-    recoil: { v: [1.8, 1.5, 1.2, 1.0], tail: 0.8, hStart: 2, hAmp: 1.0, hStep: 0.5 },
+    recoil: { v: [1.8, 1.5, 1.2, 1.0], tail: 0.8, hStart: 1, hStep: 0.5, hAmp: 1.0, protect: 1, switchChance: 0.2, switchTime: 0.3 },
     alt: { type: 'none' },
   },
 
@@ -113,7 +122,7 @@ export const WEAPONS = {
     dmg: [[50, 115, 35, 29]],
     spread: { hip: 0.3, ads: 0.15, run: 5.0, walk: 2.2, air: 8.0, deadzone: 0.27 },
     fe: { max: 1.4, start: 3, end: 8 }, recovery: 0.35,
-    recoil: { v: [0.3, 0.5, 0.6, 0.7, 0.7, 0.6, 0.5, 0.4], tail: 0.08, hStart: 7, hAmp: 2.0, hStep: 0.5 },
+    recoil: { v: [0.2, 0.4, 0.6, 0.7, 0.7, 0.6, 0.5, 0.4], tail: 0.08, hStart: 6, hStep: 0.35, hAmp: 2.0, protect: 6, switchChance: 0.1, switchTime: 0.6 },
     alt: { type: 'zoomBurst', zoom: 1.25, time: 0.2, moveMult: 0.76, count: 3, interval: 0.0625, cooldown: 0.18 },
   },
   guardian: {
@@ -122,7 +131,7 @@ export const WEAPONS = {
     dmg: [[50, 195, 65, 49]],
     spread: { hip: 0.1, ads: 0.03, run: 5.0, walk: 2.2, air: 8.0, deadzone: 0.27 },
     fe: { max: 0.6, start: 1, end: 4 }, recovery: 0.3,
-    recoil: { v: [1.1, 1.1, 1.0, 1.0, 0.9], tail: 0.6, hStart: 3, hAmp: 1.0, hStep: 0.4 },
+    recoil: { v: [1.1, 1.1, 1.0, 1.0, 0.9], tail: 0.6, hStart: 2, hStep: 0.3, hAmp: 1.0, protect: 2, switchChance: 0.15, switchTime: 0.4 },
     alt: { type: 'zoom', zoom: 1.5, time: 0.2, rateMult: 1, moveMult: 0.76 },
   },
   phantom: {
@@ -131,7 +140,7 @@ export const WEAPONS = {
     dmg: [[15, 156, 39, 33], [30, 140, 35, 29], [50, 124, 31, 26]],
     spread: { hip: 0.2, ads: 0.11, run: 5.0, walk: 2.2, air: 8.0, deadzone: 0.27 },
     fe: { max: 1.1, start: 4, end: 10 }, recovery: 0.32,
-    recoil: { v: [0.2, 0.35, 0.45, 0.55, 0.6, 0.6, 0.55, 0.45, 0.35, 0.25, 0.15, 0.1], tail: 0.04, hStart: 11, hAmp: 1.8, hStep: 0.4 },
+    recoil: { v: [0.1, 0.2, 0.35, 0.5, 0.55, 0.55, 0.5, 0.45, 0.35, 0.25, 0.15, 0.1], tail: 0.04, hStart: 8, hStep: 0.3, hAmp: 1.8, protect: 8, switchChance: 0.1, switchTime: 0.6 },
     alt: { type: 'zoom', zoom: 1.25, time: 0.2, rateMult: 0.9, moveMult: 0.76 },
   },
   vandal: {
@@ -140,7 +149,7 @@ export const WEAPONS = {
     dmg: [[50, 160, 40, 34]],
     spread: { hip: 0.25, ads: 0.157, run: 5.0, walk: 2.2, air: 8.0, deadzone: 0.27 },
     fe: { max: 1.6, start: 3, end: 9 }, recovery: 0.375,
-    recoil: { v: [0.25, 0.45, 0.65, 0.8, 0.85, 0.85, 0.8, 0.7, 0.55, 0.35, 0.2], tail: 0.05, hStart: 9, hAmp: 2.6, hStep: 0.6 },
+    recoil: { v: [0.1, 0.2, 0.5, 0.75, 0.85, 0.85, 0.8, 0.7, 0.55, 0.35, 0.2], tail: 0.05, hStart: 6, hStep: 0.4, hAmp: 2.4, protect: 6, switchChance: 0.1, switchTime: 0.6 },
     alt: { type: 'zoom', zoom: 1.25, time: 0.2, rateMult: 0.9, moveMult: 0.76 },
   },
   warden: {
@@ -149,7 +158,7 @@ export const WEAPONS = {
     dmg: [[50, 200, 50, 42]],
     spread: { hip: 0.15, ads: 0.04, run: 5.0, walk: 2.2, air: 8.0, deadzone: 0.27 },
     fe: { max: 0.8, start: 2, end: 6 }, recovery: 0.35,
-    recoil: { v: [0.9, 1.0, 1.0, 0.9, 0.8, 0.6, 0.4], tail: 0.1, hStart: 5, hAmp: 1.5, hStep: 0.5 },
+    recoil: { v: [0.9, 1.0, 1.0, 0.9, 0.8, 0.6, 0.4], tail: 0.1, hStart: 4, hStep: 0.35, hAmp: 1.5, protect: 4, switchChance: 0.1, switchTime: 0.6 },
     alt: { type: 'zoom', zoom: 2.0, time: 0.25, rateMult: 1, moveMult: 0.76 },
   },
 
@@ -160,16 +169,16 @@ export const WEAPONS = {
     dmg: [[50, 202, 101, 85]],
     spread: { hip: 1.0, ads: 0, run: 5.0, walk: 2.5, air: 8.0, deadzone: 0.27 },
     fe: { max: 1.0, start: 0, end: 1 }, recovery: 0.5,
-    recoil: { v: [3.5], tail: 3.5, hStart: 0, hAmp: 0.5, hStep: 0.3 },
+    recoil: { v: [3.5], tail: 3.5, hStart: 0, hStep: 0.3, hAmp: 0.5, protect: 0, switchChance: 0.5, switchTime: 0.2 },
     alt: { type: 'scope', levels: [3.5], time: 0.3, moveMult: 0.76 },
   },
   outlaw: {
     name: 'Outlaw', cat: 'Sniper', slot: 'primary', cost: 2400, model: 'sniper', auto: false,
-    rate: 2.75, mag: 2, reserve: 10, reload: 2.8, equip: 1.0, pen: 'high', move: RIFLE_MOVE,
+    rate: 2.75, mag: 2, reserve: 10, reload: 3.8, reloadOne: 2.3, equip: 1.0, pen: 'high', move: RIFLE_MOVE,
     dmg: [[50, 238, 140, 119]],
     spread: { hip: 1.5, ads: 0, run: 6.0, walk: 3.0, air: 10.0, deadzone: 0.27 },
     fe: { max: 1.0, start: 0, end: 1 }, recovery: 0.4,
-    recoil: { v: [3.0, 3.0], tail: 3.0, hStart: 1, hAmp: 0.5, hStep: 0.3 },
+    recoil: { v: [3.0, 3.0], tail: 3.0, hStart: 0, hStep: 0.3, hAmp: 0.5, protect: 0, switchChance: 0.5, switchTime: 0.2 },
     alt: { type: 'scope', levels: [3.5], time: 0.3, moveMult: 0.76 },
   },
   operator: {
@@ -178,7 +187,7 @@ export const WEAPONS = {
     dmg: [[50, 255, 150, 127]],
     spread: { hip: 5.0, ads: 0, run: 8.0, walk: 4.0, air: 15.0, deadzone: 0.27 },
     fe: { max: 2.0, start: 0, end: 1 }, recovery: 0.6,
-    recoil: { v: [5.0], tail: 5.0, hStart: 0, hAmp: 0.5, hStep: 0.3 },
+    recoil: { v: [5.0], tail: 5.0, hStart: 0, hStep: 0.3, hAmp: 0.5, protect: 0, switchChance: 0.5, switchTime: 0.2 },
     alt: { type: 'scope', levels: [2.5, 5], time: 0.35, moveMult: 0.6 },
   },
 
@@ -189,7 +198,7 @@ export const WEAPONS = {
     dmg: [[30, 72, 30, 25], [50, 67, 28, 23]],
     spread: { hip: 1.0, ads: 0.8, run: 3.0, walk: 1.6, air: 6.0, deadzone: 0.27 },
     fe: { max: 1.4, start: 4, end: 14 }, recovery: 0.4,
-    recoil: { v: [0.15, 0.2, 0.25, 0.3, 0.3, 0.3, 0.25, 0.2, 0.2, 0.15, 0.1], tail: 0.04, hStart: 10, hAmp: 1.5, hStep: 0.3 },
+    recoil: { v: [0.15, 0.2, 0.25, 0.3, 0.3, 0.3, 0.25, 0.2, 0.2, 0.15, 0.1], tail: 0.04, hStart: 8, hStep: 0.25, hAmp: 1.5, protect: 8, switchChance: 0.08, switchTime: 0.6 },
     alt: { type: 'zoom', zoom: 1.25, time: 0.25, rateMult: 1, moveMult: 0.76 },
   },
   odin: {
@@ -198,7 +207,7 @@ export const WEAPONS = {
     dmg: [[30, 95, 38, 32], [50, 77, 31, 26]],
     spread: { hip: 0.8, ads: 0.5, run: 3.5, walk: 1.8, air: 6.0, deadzone: 0.27 },
     fe: { max: 1.8, start: 5, end: 16 }, recovery: 0.4,
-    recoil: { v: [0.2, 0.3, 0.35, 0.4, 0.4, 0.4, 0.35, 0.3, 0.25, 0.2, 0.15, 0.1], tail: 0.05, hStart: 12, hAmp: 2.2, hStep: 0.4 },
+    recoil: { v: [0.2, 0.3, 0.35, 0.4, 0.4, 0.4, 0.35, 0.3, 0.25, 0.2, 0.15, 0.1], tail: 0.05, hStart: 10, hStep: 0.3, hAmp: 2.2, protect: 10, switchChance: 0.08, switchTime: 0.6 },
     alt: { type: 'zoom', zoom: 1.25, time: 0.25, rateMult: 1, moveMult: 0.76 },
   },
 };

@@ -20,13 +20,15 @@ export class Gun {
     this.heat = 0; // shots in the current spray, decays during recovery
     this.offP = 0; // recoil offset (radians) the bullets get; the camera shows VIEW_RECOIL of it
     this.offY = 0;
-    this.hDir = 1;
+    this.hDir = 1; // side the horizontal recoil is drifting toward
+    this.switchUntil = 0; // end of the current sweep to the other side
     this.nextFire = 0;
     this.lastShot = -10;
     this.recovering = true;
     this.recRate = 0;
     this.reloading = false;
     this.reloadEnd = 0;
+    this.reloadDur = def.reload ?? 0;
     this.equipEnd = 0;
     this.adsT = 0;
     this.adsWant = false;
@@ -88,7 +90,8 @@ export class Gun {
     const d = this.def;
     if (this.reloading || !d.mag || this.mag >= d.mag || this.reserve <= 0) return;
     this.reloading = true;
-    this.reloadEnd = now + d.reload;
+    this.reloadDur = d.reloadOne && d.mag - this.mag === 1 ? d.reloadOne : d.reload;
+    this.reloadEnd = now + this.reloadDur;
     this.burstLeft = 0;
     this.adsWant = false;
     this.zoomLevel = 0;
@@ -225,18 +228,22 @@ export class Gun {
     owner.stats.shots++;
     owner.game.fireBullets(owner, this, dirs);
 
-    // Recoil: climb along the pattern, then wander sideways once the climb plateaus.
-    if (this.heat < 0.5) this.hDir = Math.random() < 0.5 ? -1 : 1;
+    // Recoil, Valorant style: pitch climbs along the weapon's curve while yaw drifts toward one side and
+    // holds there. The side is random per spray and fixed for the protected bullets; after that each shot
+    // may flip it, and the sweep across takes `switchTime`.
     const idx = Math.floor(this.heat);
-    const up = (idx < r.v.length ? r.v[idx] : r.tail) * (0.9 + 0.2 * Math.random());
-    let side;
-    if (idx >= r.hStart) {
-      if (Math.random() < 0.15) this.hDir *= -1;
-      side = this.hDir * r.hStep * (0.6 + 0.8 * Math.random());
-      if (Math.abs(this.offY / DEG + side) > r.hAmp) { this.hDir *= -1; side = -side; }
-    } else {
-      side = (Math.random() - 0.5) * r.hStep * 0.3;
+    if (this.heat < 0.5) { this.hDir = Math.random() < 0.5 ? -1 : 1; this.switchUntil = 0; }
+    if (idx >= r.protect && now >= this.switchUntil && Math.random() < r.switchChance) {
+      this.hDir *= -1;
+      this.switchUntil = now + r.switchTime;
     }
+    const up = (idx < r.v.length ? r.v[idx] : r.tail) * (0.9 + 0.2 * Math.random());
+    const cur = this.offY / DEG, target = this.hDir * r.hAmp;
+    // Only a slight lean before `hStart`; the sideways drift proper starts after it.
+    let step = r.hStep * (idx < r.hStart ? 0.2 : 1) * (0.75 + 0.5 * Math.random());
+    if (now < this.switchUntil) step = Math.max(step, (2 * r.hAmp) / (r.switchTime * this.rate()));
+    let side = Math.max(-step, Math.min(step, target - cur));
+    if (Math.abs(target - cur) < r.hStep * 0.25) side += (Math.random() - 0.5) * r.hStep * 0.3; // small wobble at the edge
     this.offP += up * DEG;
     this.offY += side * DEG;
     this.heat += 1;

@@ -571,7 +571,7 @@ export class Renderer {
     const et = Math.min(1, (performance.now() - vm.equipStart) / Math.max(1, vm.equipDur));
     if (et < 1) { const e = 1 - Math.pow(1 - et, 3); py -= (1 - e) * 0.25; rx -= (1 - e) * 0.6; }
     if (gun.reloading) {
-      const t = 1 - Math.max(0, gun.reloadEnd - this.game.time) / def.reload;
+      const t = 1 - Math.max(0, gun.reloadEnd - this.game.time) / gun.reloadDur;
       const k = Math.sin(Math.min(1, t) * Math.PI);
       py -= k * 0.07; rz += k * 0.5; rx -= k * 0.25;
     }

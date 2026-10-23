@@ -153,10 +153,10 @@ export class Sound {
     this.noiseHit({ dest: this.master, at, hp: 2500, lp: 8000, decay: 0.025, gain });
   }
 
-  reload(def) {
+  reload(duration) {
     this.click(0.08);
-    this.click(Math.max(0.2, def.reload * 0.45), 0.2);
-    this.click(Math.max(0.3, def.reload * 0.85), 0.3);
+    this.click(Math.max(0.2, duration * 0.45), 0.2);
+    this.click(Math.max(0.3, duration * 0.85), 0.3);
   }
 
   equip() {

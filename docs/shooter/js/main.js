@@ -40,7 +40,7 @@ game.on('hit', ({ attacker, target, part, killed }) => {
   if (isPlayer(attacker) && !isPlayer(target)) sound.hitConfirm(part, killed);
   if (isPlayer(target)) sound.hurt(part === 'head');
 });
-game.on('reload', ({ who, gun }) => { if (isPlayer(who)) sound.reload(gun.def); });
+game.on('reload', ({ who, gun }) => { if (isPlayer(who)) sound.reload(gun.reloadDur); });
 game.on('dry', ({ who }) => { if (isPlayer(who)) sound.click(0, 0.3); });
 game.on('equip', ({ who }) => { if (isPlayer(who)) sound.equip(); });
 game.on('swing', ({ who, heavy }) => { if (isPlayer(who)) sound.swing(heavy); });
