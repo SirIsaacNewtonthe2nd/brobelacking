@@ -1,4 +1,3 @@
-import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { createBareServer } from "@nebula-services/bare-server-node";
@@ -9,7 +8,6 @@ import express from "express";
 import basicAuth from "express-basic-auth";
 import mime from "mime";
 import fetch from "node-fetch";
-// import { setupMasqr } from "./Masqr.js";
 import config from "./config.js";
 
 console.log(chalk.yellow("🚀 Starting server..."));
@@ -23,13 +21,7 @@ const cache = new Map();
 const CACHE_TTL = 30 * 24 * 60 * 60 * 1000; // Cache for 30 Days
 
 if (config.challenge !== false) {
-  console.log(
-    chalk.green("🔒 Password protection is enabled! Listing logins below"),
-  );
-  // biome-ignore lint/complexity/noForEach:
-  Object.entries(config.users).forEach(([username, password]) => {
-    console.log(chalk.blue(`Username: ${username}, Password: ${password}`));
-  });
+  console.log(chalk.green("🔒 Password protection is enabled!"));
   app.use(basicAuth({ users: config.users, challenge: true }));
 }
 
@@ -54,7 +46,9 @@ app.get("/e/*", async (req, res, next) => {
     let reqTarget;
     for (const [prefix, baseUrl] of Object.entries(baseUrls)) {
       if (req.path.startsWith(prefix)) {
-        reqTarget = baseUrl + req.path.slice(prefix.length);
+        reqTarget = new URL(req.path.slice(prefix.length), baseUrl).href;
+        // Block "../" tricks that would fetch files outside the asset repo
+        if (!reqTarget.startsWith(baseUrl)) reqTarget = undefined;
         break;
       }
     }
@@ -88,44 +82,6 @@ app.get("/e/*", async (req, res, next) => {
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-/* if (process.env.MASQR === "true") {
-  console.log(chalk.green("Masqr is enabled"));
-  setupMasqr(app);
-} */
-
-const blocked = Object.keys(config.blocked);
-
-app.get("/assets/js/m.js", (req, res) => {
-  const hostname = req.hostname;
-
-  const isBlocked = blocked.some(domain => {
-    if (hostname === domain) return true;
-    return hostname.endsWith(`.${domain}`);
-  });
-
-  const main = path.join(__dirname, "static/assets/js/m.js");
-
-  // console.log(`Checking hostname: ${hostname}, Blocked: ${isBlocked}`);
-
-  try {
-    if (isBlocked) {
-      fs.readFile(main, "utf8", (err, data) => {
-        if (err) {
-          console.error("Error reading the file:", err);
-          return res.status(500).send("Something went wrong.");
-        }
-        const script = data.split("\n").slice(9).join("\n");
-        res.type("application/javascript").send(script);
-      });
-    } else {
-      res.sendFile(main);
-    }
-  } catch (error) {
-    console.error("There was an error processing the script:", error);
-    res.status(500).send("Something went wrong.");
-  }
-});
 
 app.use(express.static(path.join(__dirname, "static")));
 app.use("/fq", cors({ origin: true }));
