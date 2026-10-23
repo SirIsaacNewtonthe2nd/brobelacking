@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Car RL Playground</title>
+<meta name="description" content="Pick or draw a track, tune the reward, and train a PPO agent to drive it, right in your browser.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏎️</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+<script type="module" src="app.js"></script>
+</head>
+<body>
+<main class="page">
+  <header>
+    <h1>Car RL Playground</h1>
+    <p class="caption">Pick or draw a track, tune the reward, and train a PPO agent to drive it.</p>
+  </header>
+
+  <div class="setup">
+    <section class="panel" aria-labelledby="track-title">
+      <h3 id="track-title">Track</h3>
+      <div class="radio-row" role="radiogroup" aria-label="Track source">
+        <label><input type="radio" name="source" value="Draw" checked> Draw</label>
+        <label><input type="radio" name="source" value="Circle"> Circle</label>
+        <label><input type="radio" name="source" value="Oval"> Oval</label>
+        <label><input type="radio" name="source" value="Square"> Square</label>
+        <label><input type="radio" name="source" value="Figure eight"> Figure eight</label>
+      </div>
+
+      <div class="field" id="brush-field">
+        <div class="field-head"><label for="brush">Brush width</label><output id="brush-value" for="brush">30</output></div>
+        <input type="range" id="brush" min="10" max="80" step="1" value="30">
+      </div>
+
+      <div class="canvas-wrap">
+        <div class="canvas-toolbar" id="canvas-toolbar">
+          <button type="button" class="btn" id="undo">Undo</button>
+          <button type="button" class="btn" id="clear">Clear</button>
+        </div>
+        <canvas class="board drawing" id="track-canvas" aria-label="Track"></canvas>
+      </div>
+      <p class="caption" id="track-caption"></p>
+    </section>
+
+    <section class="panel" aria-labelledby="settings-title">
+      <h3 id="settings-title">Settings</h3>
+      <div class="tabs" role="tablist">
+        <button type="button" role="tab" id="tab-btn-training" aria-controls="tab-training" aria-selected="true">Training</button>
+        <button type="button" role="tab" id="tab-btn-rewards" aria-controls="tab-rewards" aria-selected="false">Rewards</button>
+      </div>
+
+      <div role="tabpanel" id="tab-training" aria-labelledby="tab-btn-training">
+        <div class="field">
+          <div class="field-head"><label for="steps">Total timesteps</label><output id="steps-value" for="steps"></output></div>
+          <input type="range" id="steps" min="5000" max="100000" step="5000" value="20000">
+        </div>
+        <div class="field">
+          <div class="field-head"><label for="lr">Learning rate</label></div>
+          <div class="stepper">
+            <input class="text-input" id="lr" inputmode="decimal" value="0.00030" autocomplete="off">
+            <button type="button" id="lr-down" aria-label="Decrease learning rate">−</button>
+            <button type="button" id="lr-up" aria-label="Increase learning rate">+</button>
+          </div>
+        </div>
+        <div class="field">
+          <div class="field-head">
+            <label for="layers">Network layers</label>
+            <span class="help" tabindex="0" data-tip="Comma-separated hidden layer sizes, e.g. 128, 64">?</span>
+          </div>
+          <input class="text-input" id="layers" value="64, 64" autocomplete="off">
+        </div>
+        <div class="toggle-row">
+          <label class="toggle"><input type="checkbox" id="resume" disabled> Resume from saved weights</label>
+          <span class="help" tabindex="0" data-tip="Continues training the last model saved in this browser. Network layers are ignored when resuming.">?</span>
+        </div>
+        <p class="caption" id="no-weights">No saved weights yet.</p>
+      </div>
+
+      <div role="tabpanel" id="tab-rewards" aria-labelledby="tab-btn-rewards" hidden>
+        <div class="field">
+          <div class="field-head">
+            <span class="field-label"><label for="crashPenalty">Crash penalty</label> <span class="help" tabindex="0" data-tip="Reward given when the car leaves the track. Ends the episode.">?</span></span>
+            <output id="crashPenalty-value" for="crashPenalty"></output>
+          </div>
+          <input type="range" id="crashPenalty" min="-50" max="0" step="0.01">
+        </div>
+        <div class="field">
+          <div class="field-head">
+            <span class="field-label"><label for="centerWeight">Centerline reward</label> <span class="help" tabindex="0" data-tip="Bonus for staying near the center of the canvas.">?</span></span>
+            <output id="centerWeight-value" for="centerWeight"></output>
+          </div>
+          <input type="range" id="centerWeight" min="0" max="5" step="0.01">
+        </div>
+        <div class="field">
+          <div class="field-head">
+            <span class="field-label"><label for="speedWeight">Speed reward</label> <span class="help" tabindex="0" data-tip="Bonus proportional to current speed.">?</span></span>
+            <output id="speedWeight-value" for="speedWeight"></output>
+          </div>
+          <input type="range" id="speedWeight" min="0" max="2" step="0.01">
+        </div>
+        <div class="field">
+          <div class="field-head">
+            <span class="field-label"><label for="revisitPenalty">Revisit penalty</label> <span class="help" tabindex="0" data-tip="Penalty for driving over a pixel already visited this episode.">?</span></span>
+            <output id="revisitPenalty-value" for="revisitPenalty"></output>
+          </div>
+          <input type="range" id="revisitPenalty" min="0" max="2" step="0.01">
+        </div>
+        <button type="button" class="btn" id="reset-rewards">Reset to defaults</button>
+      </div>
+    </section>
+  </div>
+
+  <button type="button" class="btn primary" id="train">Train and simulate</button>
+  <div class="alert error" id="error" role="alert" hidden></div>
+
+  <section class="panel" id="results" aria-labelledby="results-title" hidden>
+    <h3 id="results-title">Training</h3>
+    <p class="caption" id="run-note"></p>
+    <div class="progress" role="progressbar" aria-label="Training progress" aria-valuemin="0" aria-valuemax="100" id="progress"><div id="progress-bar"></div></div>
+    <div class="metrics">
+      <div class="metric"><span class="label">Steps</span><span class="value" id="m-steps">–</span></div>
+      <div class="metric"><span class="label">Checkpoint score</span><span class="value" id="m-score">–</span></div>
+      <div class="metric"><span class="label">Best score</span><span class="value" id="m-best">–</span></div>
+      <div class="metric"><span class="label">Episode length</span><span class="value" id="m-length">–</span></div>
+    </div>
+    <div class="results-grid">
+      <div>
+        <p class="caption">Best run so far</p>
+        <div class="alert" id="replay-empty">The first simulation appears after one checkpoint.</div>
+        <canvas class="board" id="replay" aria-label="Replay of the best run" hidden></canvas>
+      </div>
+      <div>
+        <p class="caption">Score per checkpoint</p>
+        <div class="alert" id="chart-empty">A checkpoint is evaluated every 5,000 steps.</div>
+        <div id="chart-wrap" hidden>
+          <div class="chart" id="chart" tabindex="0" role="img" aria-label="Score per checkpoint"></div>
+          <div class="legend" aria-hidden="true">
+            <span><i class="key" style="background:#7D8491"></i>Score</span>
+            <span><i class="key" style="background:#4C8DFF"></i>Best</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <button type="button" class="btn" id="download" hidden>Download weights (.json)</button>
+  </section>
+</main>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>
