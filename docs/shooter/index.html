@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Only this site's own files may run; no outside scripts and no network requests of any kind. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<title>Tapfire</title>
+<meta name="description" content="Browser FPS with Valorant-style gunplay: first-shot accuracy, movement error, spray patterns, tagging and damage falloff. One map, bots, free-for-all.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='30' fill='none' stroke='%23ff4655' stroke-width='10'/><circle cx='50' cy='50' r='6' fill='%23ff4655'/></svg>">
+<link rel="stylesheet" href="style.css">
+<script type="module" src="js/main.js"></script>
+</head>
+<body>
+<canvas id="view"></canvas>
+
+<div id="hud" hidden>
+  <canvas id="crosshair"></canvas>
+  <div id="scope" hidden><i class="h"></i><i class="v"></i></div>
+  <div id="vignette"></div>
+  <div id="dmgdirs"></div>
+  <div id="dmgnums"></div>
+  <div id="top"><div id="timer">6:00</div><div id="score"></div></div>
+  <div id="killfeed"></div>
+  <div id="center-msg"></div>
+  <div id="vitals">
+    <div class="stat"><span id="hp">100</span><div class="bar"><i id="hpbar"></i></div><label>HP</label></div>
+    <div class="stat armor"><span id="armor">50</span><div class="bar"><i id="armorbar"></i></div><label>Shield</label></div>
+  </div>
+  <div id="weapon">
+    <div id="ammo"><span id="mag">0</span><span id="reserve"></span></div>
+    <div id="wname"></div>
+    <div id="wmode"></div>
+  </div>
+  <pre id="debug" hidden></pre>
+  <div id="death" hidden>
+    <div id="death-title"></div>
+    <div id="death-report"></div>
+    <div id="respawn"></div>
+  </div>
+  <div id="scoreboard" hidden>
+    <table><thead><tr><th>Player</th><th>K</th><th>D</th><th>HS%</th><th>Acc</th><th>Dmg</th></tr></thead><tbody id="scoreboard-body"></tbody></table>
+  </div>
+  <div id="buy" hidden>
+    <div class="buy-head"><h2>Loadout</h2><p>Free in this mode. Click a weapon to equip it now and on every respawn.</p><button id="buy-close">Close (B)</button></div>
+    <div id="buy-groups"></div>
+  </div>
+  <div id="cursor" hidden></div>
+</div>
+
+<div id="menu" class="overlay">
+  <div class="panel">
+    <h1>Tapfire</h1>
+    <p class="sub">Tactical-shooter gunplay against bots. One map, free-for-all.</p>
+    <p class="loadout">Loadout: <b id="menu-loadout"></b> <small>(press B in game to change)</small></p>
+    <div class="buttons">
+      <button id="play" class="primary">Play</button>
+      <button id="menu-settings">Settings</button>
+    </div>
+    <dl class="keys">
+      <dt>Move</dt><dd>W A S D</dd>
+      <dt>Walk</dt><dd>Shift</dd>
+      <dt>Crouch</dt><dd>C or Ctrl</dd>
+      <dt>Jump</dt><dd>Space</dd>
+      <dt>Fire / Alt fire</dt><dd>Left / right mouse</dd>
+      <dt>Reload</dt><dd>R</dd>
+      <dt>Weapons</dt><dd>1 2 3, Q last, wheel</dd>
+      <dt>Loadout</dt><dd>B</dd>
+      <dt>Scores</dt><dd>Tab</dd>
+      <dt>Debug readout</dt><dd>F3 or `</dd>
+    </dl>
+    <p class="note">Sensitivity uses the same scale as Valorant, so you can bring yours over. Stop moving before you shoot: rifles are only accurate below about a quarter of run speed.</p>
+  </div>
+</div>
+
+<div id="pause" class="overlay" hidden>
+  <div class="panel small">
+    <h2>Paused</h2>
+    <div class="buttons col">
+      <button id="resume" class="primary">Resume</button>
+      <button id="pause-settings">Settings</button>
+      <button id="restart">Restart match</button>
+      <button id="quit">Main menu</button>
+    </div>
+    <p id="pause-hint" class="note"></p>
+  </div>
+</div>
+
+<div id="settings" class="overlay" hidden>
+  <div class="panel wide">
+    <h2>Settings</h2>
+    <div id="settings-form"></div>
+    <div class="buttons">
+      <button id="settings-back" class="primary">Back</button>
+      <button id="settings-reset">Reset to defaults</button>
+    </div>
+  </div>
+</div>
+
+<div id="end" class="overlay" hidden>
+  <div class="panel">
+    <h2 id="end-title"></h2>
+    <div id="end-stats"></div>
+    <table class="scores"><thead><tr><th>Player</th><th>K</th><th>D</th><th>HS%</th><th>Acc</th><th>Dmg</th></tr></thead><tbody id="end-table"></tbody></table>
+    <div class="buttons">
+      <button id="again" class="primary">Play again</button>
+      <button id="end-menu">Main menu</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
