@@ -7,6 +7,7 @@
   --accent: #ff4655;
   --good: #4fd1a5;
   --shield: #6ab7ff;
+  color-scheme: dark;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
 }
 
@@ -100,6 +101,7 @@ th { color: var(--muted); font-weight: 500; }
 .sub { color: var(--muted); margin: 10px 0 16px; }
 .loadout { font-size: 14px; }
 .loadout small, .note { color: var(--muted); font-size: 13px; }
+.note.warn { color: var(--accent); }
 .buttons { display: flex; gap: 10px; margin: 18px 0; flex-wrap: wrap; }
 .buttons.col { flex-direction: column; }
 .buttons button { padding: 10px 20px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.06); color: var(--text); cursor: pointer; letter-spacing: 1px; text-transform: uppercase; font-size: 13px; }

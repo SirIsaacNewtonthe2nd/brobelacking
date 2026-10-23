@@ -358,6 +358,7 @@ $('settings-reset').onclick = () => {
 $('again').onclick = startMatch;
 $('end-menu').onclick = () => { running = false; game.state = 'idle'; updateMenuLoadout(); show('menu'); };
 updateMenuLoadout();
+if (!matchMedia('(any-pointer: fine)').matches) $('touch-note').hidden = false;
 
 addEventListener('beforeunload', (e) => {
   if (running && game.state === 'playing') { e.preventDefault(); e.returnValue = ''; }
