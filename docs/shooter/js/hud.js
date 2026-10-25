@@ -1,6 +1,6 @@
 // DOM HUD: crosshair, vitals, ammo, kill feed, damage feedback, scoreboard, death report, buy menu.
 import { WEAPONS, BUY_GROUPS } from './weapons.js';
-import { PLAYER, TICK_RATE } from './config.js';
+import { PLAYER, TICK_RATE, SHIELDS } from './config.js';
 
 const DEG = Math.PI / 180;
 const $ = (id) => document.getElementById(id);
@@ -104,7 +104,9 @@ export class Hud {
     this.set('hp', Math.max(0, Math.ceil(p.hp)));
     this.set('armor', Math.max(0, Math.ceil(p.armor)));
     $('hpbar').style.width = `${Math.max(0, p.hp) / PLAYER.hp * 100}%`;
-    $('armorbar').style.width = `${Math.max(0, p.armor) / PLAYER.armor * 100}%`;
+    const sh = SHIELDS[p.shieldType];
+    $('armorbar').style.width = `${sh.amount ? Math.max(0, p.armor) / sh.amount * 100 : 0}%`;
+    this.set('armorlabel', sh.pool ? `${sh.name} shield +${Math.ceil(p.shieldPool)}` : `${sh.name} shield`);
     if (def.melee) { this.set('mag', '—'); this.set('reserve', ''); }
     else { this.set('mag', gun.mag); this.set('reserve', ` / ${gun.reserve}`); }
     this.set('wname', def.name);

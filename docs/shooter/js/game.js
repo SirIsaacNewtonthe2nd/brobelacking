@@ -34,6 +34,7 @@ export class Game {
     this.bots = [];
     const player = new Combatant(this, { name: 'You' });
     player.loadout = { ...opts.loadout };
+    player.shieldType = opts.shields || 'heavy';
     this.player = player;
     this.combatants.push(player);
     const primaries = BUY_GROUPS.filter(([g]) => g !== 'Sidearms').flatMap(([, ids]) => ids);
@@ -44,6 +45,7 @@ export class Game {
       else if (opts.botWeapons === 'random') primary = primaries[Math.floor(Math.random() * primaries.length)];
       else primary = Math.random() < 0.5 ? 'vandal' : 'phantom';
       c.loadout = { primary, secondary: 'classic' };
+      c.shieldType = opts.shields || 'heavy';
       c.brain = new Bot(c, this, opts.difficulty, opts.botMode);
       this.combatants.push(c);
       this.bots.push(c);
@@ -167,7 +169,7 @@ export class Game {
   damage(target, attacker, amount, info) {
     if (!target.alive || amount <= 0) return;
     const now = this.time;
-    const dealt = target.takeDamage(amount);
+    const dealt = target.takeDamage(amount, now);
     const s = attacker.stats;
     s.hits++;
     s[info.part]++;

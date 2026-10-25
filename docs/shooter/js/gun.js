@@ -1,6 +1,6 @@
 // Per-weapon state machine shared by the player and bots: fire cadence, spread, recoil, recovery,
 // ADS/scopes, bursts, spin-up, reload and equip.
-import { DT, CROUCH_SPREAD, PLAYER } from './config.js';
+import { DT, CROUCH_SPREAD, PLAYER, LANDING } from './config.js';
 import { dirFromAngles } from './entity.js';
 
 const DEG = Math.PI / 180;
@@ -33,6 +33,7 @@ export class Gun {
     this.adsT = 0;
     this.adsWant = false;
     this.zoomLevel = 0;
+    this.rescope = false; // right click held during a bolt cycle: scope back in when it finishes
     this.burstLeft = 0;
     this.burst = null;
     this.spinT = 0;
@@ -98,23 +99,37 @@ export class Gun {
     owner.game.emit('reload', { who: owner, gun: this });
   }
 
-  // Spread cone half-angle in degrees for the next shot.
+  // Spread cone half-angle in degrees for the next shot: first-shot spread growing toward max spread as
+  // the spray goes on (crouch scales both), plus the movement penalty for how you're moving.
   spread(owner, burst = null) {
-    const d = this.def, s = d.spread;
-    const base = burst && burst.spread != null ? burst.spread : lerp(s.hip, s.ads, this.adsT);
-    const frac = owner.horizSpeed() / d.move;
-    const wk = PLAYER.walkMult;
-    let move = 0;
-    if (frac > s.deadzone) {
+    const d = this.def;
+    const s = burst && burst.spread ? { ...d.spread, ...burst.spread } : d.spread;
+    const ads = burst ? 0 : this.adsT;
+    const first = lerp(s.hip, s.ads ?? s.hip, ads);
+    const max = lerp(s.max ?? s.hip, s.maxAds ?? s.max ?? s.hip, ads);
+    let base = first + (max - first) * smoothstep(d.fe.start, d.fe.end, this.heat);
+    if (owner.crouched && owner.grounded) base *= s.crouch ?? CROUCH_SPREAD;
+    return base + this.movementError(owner, s);
+  }
+
+  movementError(owner, s) {
+    if (!owner.grounded) return s.air;
+    const landing = owner.game.time - owner.landTime < LANDING.time ? LANDING.spread : 0;
+    const frac = owner.horizSpeed() / this.def.move;
+    if (frac <= s.deadzone) return landing;
+    let move;
+    if (owner.crouched) {
+      const cf = PLAYER.crouchMult;
+      move = frac <= cf
+        ? s.crouchMove * (frac - s.deadzone) / (cf - s.deadzone)
+        : s.crouchMove + (s.run - s.crouchMove) * Math.min(1, (frac - cf) / (1 - cf));
+    } else {
+      const wk = PLAYER.walkMult;
       move = frac <= wk
         ? s.walk * (frac - s.deadzone) / (wk - s.deadzone)
         : s.walk + (s.run - s.walk) * Math.min(1, (frac - wk) / (1 - wk));
     }
-    const air = owner.grounded ? 0 : s.air;
-    const fe = d.fe.max * smoothstep(d.fe.start, d.fe.end, this.heat);
-    let total = base + move + air + fe;
-    if (owner.crouched && owner.grounded) total *= CROUCH_SPREAD;
-    return total;
+    return Math.max(0, move) + landing;
   }
 
   tick(owner, now, dt) {
@@ -138,11 +153,21 @@ export class Gun {
     if (a.type === 'zoom' || a.type === 'zoomBurst') {
       if (owner.adsHold) this.adsWant = inp.alt;
       else if (inp.altPressed) this.adsWant = !this.adsWant;
-    } else if (a.type === 'scope' && inp.altPressed && ready) {
-      this.zoomLevel = (this.zoomLevel + 1) % (a.levels.length + 1);
+    } else if (a.type === 'scope' && ready) {
+      // Bolt-action scopes can't come up until the bolt has cycled; holding right click during the
+      // cycle scopes back in the moment it's done.
+      const cycling = a.unscope && now < this.nextFire;
+      if (cycling) {
+        if (inp.alt) this.rescope = true;
+      } else if (this.rescope) {
+        this.rescope = false;
+        if (inp.alt && this.zoomLevel === 0) this.zoomLevel = 1;
+      } else if (inp.altPressed) {
+        this.zoomLevel = (this.zoomLevel + 1) % (a.levels.length + 1);
+      }
       this.adsWant = this.zoomLevel > 0;
     }
-    if (!ready) { this.adsWant = false; this.zoomLevel = 0; }
+    if (!ready) { this.adsWant = false; this.zoomLevel = 0; this.rescope = false; }
     const step = dt / (a.time || 0.2);
     this.adsT = clamp(this.adsT + clamp((this.adsWant ? 1 : 0) - this.adsT, -step, step), 0, 1);
 
@@ -173,7 +198,9 @@ export class Gun {
           if (this.mag <= 0) this.dryFire(owner, now);
           else if (now >= this.nextFire) {
             const interval = 1 / this.rate();
-            if (now - this.nextFire > interval) this.nextFire = now; // trigger was idle: restart the cadence
+            // Carry over less than a tick of lateness so automatic fire keeps its exact rate; any longer
+            // and the trigger was idle, so the next shot is a full interval after this one.
+            if (now - this.nextFire > DT) this.nextFire = now;
             this.shoot(owner, now, null);
             this.nextFire += interval;
             this.triggerDown = d.auto;
@@ -227,6 +254,7 @@ export class Gun {
     this.mag--;
     owner.stats.shots++;
     owner.game.fireBullets(owner, this, dirs);
+    if (this.alt.unscope) { this.zoomLevel = 0; this.adsWant = false; this.adsT = 0; }
 
     // Recoil, Valorant style: pitch climbs along the weapon's curve while yaw drifts toward one side and
     // holds there. The side is random per spray and fixed for the protected bullets; after that each shot

@@ -27,13 +27,24 @@ export const PLAYER = {
   crouchMult: 0.5,
   knifeSpeed: 6.75,
   hp: 100,
-  armor: 50, // heavy shield, absorbs damage 1:1 before health
 };
+
+// Shields. Light and Heavy take 66% of each hit until they've absorbed 25 / 50; the rest goes to health.
+// Regen takes 100% of hits into a 25 shield, then refills it from a 50 pool 3 s after it breaks.
+export const SHIELDS = {
+  heavy: { name: 'Heavy', amount: 50, absorb: 0.66 },
+  light: { name: 'Light', amount: 25, absorb: 0.66 },
+  regen: { name: 'Regen', amount: 25, absorb: 1, pool: 50, delay: 3, rate: 25 }, // refill rate est.
+  none: { name: 'None', amount: 0, absorb: 0 },
+};
+
+// Landing after being airborne adds 7 degrees of spread for 0.225 s.
+export const LANDING = { spread: 7, time: 0.225 };
 
 // Getting hit slows movement. Values from the 3.0 patch (72.5%); shotgun pellets past 10 m only slow 30%.
 export const TAG = { slow: 0.725, hold: 0.25, fade: 0.25, shotgunFarSlow: 0.3, shotgunFarRange: 10 };
 
-export const CROUCH_SPREAD = 0.85; // spread multiplier while crouched on the ground
+export const CROUCH_SPREAD = 0.85; // default crouch spread multiplier when a weapon doesn't set its own
 export const VIEW_RECOIL = 0.5; // share of bullet recoil that moves the camera; bullets land above the crosshair
 export const PEN_DEPTH = { low: 1.0, medium: 2.2, high: 4.4 }; // meters of penetrable material a bullet can cross
 export const MAX_RANGE = 250;

@@ -188,6 +188,7 @@ export class Bot {
     // Shoot phase: stop moving (releasing keys brakes hard), then fire once slow enough.
     const altType = def.alt && def.alt.type;
     if (altType === 'scope' && dist > 8 && gun.zoomLevel === 0 && !gun.reloading) inp.altPressed = true;
+    if (altType === 'scope' && dist > 8 && gun.adsT < 0.95) return; // wait for the scope before shooting
     if (altType === 'zoom' && dist > 20) inp.alt = true;
     if (this.burstLeft === 0) {
       if (gun.heat > (dist > 20 ? 0.3 : 1.5)) return; // let spread recover between bursts

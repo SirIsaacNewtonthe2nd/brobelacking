@@ -1,5 +1,5 @@
 // A player or bot: movement, collision, hitboxes, health and inventory.
-import { PLAYER, TAG, HITBOX } from './config.js';
+import { PLAYER, TAG, HITBOX, SHIELDS } from './config.js';
 import { rayAABB } from './world.js';
 import { WEAPONS } from './weapons.js';
 import { Gun } from './gun.js';
@@ -37,7 +37,11 @@ export class Combatant {
     this.alive = false;
     this.respawnAt = 0;
     this.hp = PLAYER.hp;
-    this.armor = PLAYER.armor;
+    this.shieldType = 'heavy';
+    this.armor = 0;
+    this.shieldPool = 0; // regen shield reserve
+    this.lastHitTime = -100;
+    this.landTime = -100;
     this.adsHold = true;
     this.input = { fwd: 0, side: 0, walk: false, crouch: false, jump: false, fire: false, alt: false, firePressed: false, altPressed: false, reload: false };
     this.inv = { primary: null, secondary: null, melee: new Gun(WEAPONS.knife) };
@@ -111,7 +115,8 @@ export class Combatant {
     this.prevEyeY = this.pos[1] + this.eyeOff;
     this.grounded = true;
     this.hp = PLAYER.hp;
-    this.armor = PLAYER.armor;
+    this.resetShield();
+    this.landTime = -100;
     this.alive = true;
     this.tagTime = -100;
     this.report.clear();
@@ -122,17 +127,35 @@ export class Combatant {
     this.equip(this.inv.primary ? 'primary' : 'secondary', now);
   }
 
-  takeDamage(amount) {
+  resetShield() {
+    const sh = SHIELDS[this.shieldType];
+    this.armor = sh.amount;
+    this.shieldPool = sh.pool || 0;
+  }
+
+  // The shield takes its share of the hit (66% for Light/Heavy, all of it for Regen) until it runs out.
+  takeDamage(amount, now) {
+    const sh = SHIELDS[this.shieldType];
     const before = this.hp + this.armor;
-    const a = Math.min(this.armor, amount);
-    this.armor -= a;
-    this.hp -= amount - a;
+    const absorbed = Math.min(this.armor, amount * sh.absorb);
+    this.armor -= absorbed;
+    this.hp -= amount - absorbed;
+    this.lastHitTime = now;
     return before - Math.max(0, this.hp + this.armor);
+  }
+
+  // Regen shield: refill the active shield from the pool once you haven't been hit for a while.
+  regenShield(now, dt) {
+    const sh = SHIELDS[this.shieldType];
+    if (!sh.pool || this.shieldPool <= 0 || this.armor >= sh.amount || now - this.lastHitTime < sh.delay) return;
+    const add = Math.min(sh.rate * dt, sh.amount - this.armor, this.shieldPool);
+    this.armor += add;
+    this.shieldPool -= add;
   }
 
   heal() {
     this.hp = PLAYER.hp;
-    this.armor = PLAYER.armor;
+    this.resetShield();
     for (const g of Object.values(this.inv)) if (g && g.def.reserve) g.reserve = g.def.reserve;
   }
 
@@ -218,7 +241,11 @@ export class Combatant {
     const wasGrounded = this.grounded && !jumped;
     const fallSpeed = this.vel[1];
     this.collideMove(dt, world, wasGrounded, jumped);
-    if (this.grounded && !wasGrounded && !jumped && fallSpeed < -4) this.game.emit('land', { who: this, speed: -fallSpeed });
+    if (this.grounded && !wasGrounded && !jumped) {
+      this.landTime = now;
+      if (fallSpeed < -4) this.game.emit('land', { who: this, speed: -fallSpeed });
+    }
+    this.regenShield(now, dt);
 
     // Eye height: ease crouch transitions and step-ups.
     const eyeTarget = this.crouched ? PLAYER.crouchEye : PLAYER.standEye;

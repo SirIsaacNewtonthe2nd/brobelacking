@@ -30,6 +30,7 @@ export const DEFAULTS = {
   difficulty: 'normal',
   botMode: 'fight',
   botWeapons: 'rifles',
+  shields: 'heavy',
   killLimit: 40,
   timeMinutes: 6,
   loadout: { primary: 'vandal', secondary: 'classic' },
